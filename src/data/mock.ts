@@ -1229,3 +1229,54 @@ export const substituteSets: SubstituteSet[] = [
 export function getSubstitutes(productId: string): SubstituteSet | undefined {
   return substituteSets.find((set) => set.productId === productId);
 }
+
+// ---------------------------------------------------------------------------
+// Wholesaler: the sales agent's seasonal suggestions and how each buyer's
+// agent screens them against its own rules
+// ---------------------------------------------------------------------------
+
+export interface SeasonalSuggestion {
+  product: string;
+  supplier: string;
+  why: string;
+  screening: Record<KitchenId, { accepted: boolean; reason: string }>;
+}
+
+export const seasonalSuggestions: SeasonalSuggestion[] = [
+  {
+    product: 'Finnish lingonberries frozen 2.5 kg',
+    supplier: 'POHJOLAN MARJA OY',
+    why: 'New harvest, 12% below last month',
+    screening: {
+      hotel: { accepted: true, reason: 'Within the rules; shown to the head chef as a suggestion' },
+      school: { accepted: true, reason: 'Within the rules and of Finnish origin' },
+    },
+  },
+  {
+    product: 'Christmas ham Finnish 6 kg',
+    supplier: 'HKSCAN FINLAND OY',
+    why: 'Pre-orders for December deliveries are open',
+    screening: {
+      hotel: { accepted: true, reason: 'Within the rules; shown to the head chef as a suggestion' },
+      school: { accepted: true, reason: 'Within the rules and of Finnish origin' },
+    },
+  },
+  {
+    product: 'Norwegian skrei cod loin MSC 1 kg',
+    supplier: 'KESPRO KALA OY',
+    why: 'Skrei season starts in January',
+    screening: {
+      hotel: { accepted: true, reason: 'Within the rules; shown to the head chef as a suggestion' },
+      school: { accepted: false, reason: 'Needs approval: not of Finnish origin' },
+    },
+  },
+  {
+    product: 'Roasted chestnuts 1 kg',
+    supplier: 'STAAY FOOD GROOP B.V.',
+    why: 'Winter favourite for desserts',
+    screening: {
+      hotel: { accepted: false, reason: 'Blocked: contains tree nuts' },
+      school: { accepted: false, reason: 'Blocked: contains tree nuts' },
+    },
+  },
+];

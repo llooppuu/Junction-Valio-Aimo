@@ -15,6 +15,8 @@ interface DemoState {
   alerts: StockAlert[];
   activity: ActivityEntry[];
   revokedMandates: KitchenId[];
+  /** Whether the wholesaler's sales agent has sent this season's suggestions. */
+  suggestionsSent: boolean;
 }
 
 interface DemoStateValue extends DemoState {
@@ -25,6 +27,7 @@ interface DemoStateValue extends DemoState {
   approveQuote: (quoteId: string) => void;
   rejectQuote: (quoteId: string) => void;
   revokeMandate: (kitchenId: KitchenId) => void;
+  sendSuggestions: () => void;
   /** Clears quotes, orders, alerts, agent runs and activity. */
   reset: () => void;
 }
@@ -37,6 +40,7 @@ function initialState(): DemoState {
     alerts: [...stockAlerts],
     activity: [...activity],
     revokedMandates: [],
+    suggestionsSent: false,
   };
 }
 
@@ -234,6 +238,10 @@ export function DemoStateProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const sendSuggestions = useCallback(() => {
+    setState((prev) => ({ ...prev, suggestionsSent: true }));
+  }, []);
+
   const reset = useCallback(() => {
     setState((prev) => ({ ...prev, quotes: [], orders: [], runs: [], alerts: [], activity: [] }));
   }, []);
@@ -247,9 +255,10 @@ export function DemoStateProvider({ children }: { children: ReactNode }) {
       approveQuote,
       rejectQuote,
       revokeMandate,
+      sendSuggestions,
       reset,
     }),
-    [state, completeRun, approveQuote, rejectQuote, revokeMandate, reset],
+    [state, completeRun, approveQuote, rejectQuote, revokeMandate, sendSuggestions, reset],
   );
 
   return <DemoStateContext.Provider value={value}>{children}</DemoStateContext.Provider>;
