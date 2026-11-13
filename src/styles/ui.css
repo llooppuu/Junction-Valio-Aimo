@@ -1,0 +1,43 @@
+/* Shared building blocks */
+
+/* Buttons */
+.btn {
+  --btn-bg: var(--color-surface);
+  --btn-fg: var(--color-primary);
+  --btn-border: var(--btn-bg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 46px;
+  padding: 0 var(--space-5);
+  border: 2px solid var(--btn-border);
+  border-radius: var(--radius-none);
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.btn:hover {
+  text-decoration: none;
+}
+
+.btn--accent {
+  --btn-bg: var(--color-accent);
+  --btn-fg: var(--color-on-accent);
+}
+
+.btn--accent:hover {
+  --btn-bg: var(--color-accent-dark);
+}

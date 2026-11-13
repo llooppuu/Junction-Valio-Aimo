@@ -1,14 +1,36 @@
+import { useEffect, useMemo, useState } from 'react';
+import Header from './components/Header.tsx';
+import { useHashRoute } from './lib/router.ts';
+import { getStrings, LangContext, type Lang } from './lib/i18n.ts';
+
 export default function App() {
+  const [route] = useHashRoute();
+  const [lang, setLang] = useState<Lang>('en');
+
+  const langValue = useMemo(() => ({ lang, setLang, t: getStrings(lang) }), [lang]);
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
+
+  // Start each view at the top of the page.
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [route]);
+
+  const title = route === 'wholesaler' ? langValue.t.wholesalerView : langValue.t[route];
+
   return (
-    <div className="app">
-      <header className="app-header" aria-label="Site header" />
-      <main id="main" className="app-main">
-        <div className="container">
-          <h1>Trusted Trade Agents</h1>
-          <p className="lead">Purchasing for professional kitchens, done by agents you can trust.</p>
-        </div>
-      </main>
-      <footer className="app-footer" aria-label="Site footer" />
-    </div>
+    <LangContext.Provider value={langValue}>
+      <div className="app">
+        <Header route={route} />
+        <main id="main" className="app-main" tabIndex={-1}>
+          <div className="container" style={{ paddingBlock: 'var(--space-12)' }}>
+            <h1>{title}</h1>
+          </div>
+        </main>
+        <footer className="app-footer" aria-label="Site footer" />
+      </div>
+    </LangContext.Provider>
   );
 }

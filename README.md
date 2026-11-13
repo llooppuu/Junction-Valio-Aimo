@@ -40,8 +40,10 @@ Then open http://localhost:5173.
 public/          Static files served as-is (favicon)
 src/
   main.tsx       Entry point: mounts the app and loads global styles
-  App.tsx        Page shell: header, main and footer areas
-  styles/        Design tokens, fonts and base CSS
+  App.tsx        Page shell: header, current view and footer
+  components/    UI components: header, footer, views and building blocks
+  lib/           Helpers and types: hash router, shell strings
+  styles/        Design tokens, fonts, base and component CSS
 ```
 
 ## Tech stack
