@@ -5,6 +5,7 @@ import PageHero from './components/ui/PageHero.tsx';
 import DashboardView from './components/views/DashboardView.tsx';
 import WorkspaceView from './components/views/WorkspaceView.tsx';
 import CatalogView from './components/views/CatalogView.tsx';
+import OrdersView from './components/views/OrdersView.tsx';
 import { useHashRoute, type Route } from './lib/router.ts';
 import { getStrings, LangContext, type Lang, type ShellStrings } from './lib/i18n.ts';
 import { DemoStateProvider } from './lib/demo-state.tsx';
@@ -17,6 +18,8 @@ function renderView(route: Route, t: ShellStrings) {
       return <WorkspaceView />;
     case 'catalog':
       return <CatalogView />;
+    case 'orders':
+      return <OrdersView />;
     default:
       return (
         <PageHero title={route === 'wholesaler' ? t.wholesalerView : t[route]} lead="This view is coming next." />
