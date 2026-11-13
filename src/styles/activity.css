@@ -1,0 +1,108 @@
+/* Activity feed (workspace side panel, activity page, wholesaler view) */
+.feed {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.feed__item {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: var(--space-2);
+}
+
+.feed__time {
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.6;
+}
+
+.feed__actor {
+  color: var(--color-primary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.feed__text {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.feed__detail {
+  margin-top: 2px;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.feed__ref {
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--color-border-strong);
+  text-underline-offset: 3px;
+}
+
+.feed__ref[aria-pressed='true'] {
+  background: var(--color-accent);
+  text-decoration: none;
+}
+
+/* Compact: separated by thin lines */
+.feed--compact .feed__item {
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.feed--compact .feed__item:first-child {
+  padding-top: 0;
+}
+
+.feed--compact .feed__item:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+/* Full: white rows in a bordered list */
+.feed--full {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.feed--full .feed__item {
+  grid-template-columns: 92px minmax(0, 1fr);
+  padding: var(--space-5) var(--space-5) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  border-left: 3px solid transparent;
+}
+
+.feed--full .feed__item:last-child {
+  border-bottom: 0;
+}
+
+.feed--full .feed__text {
+  font-size: 0.9375rem;
+}
+
+.feed--full .feed__item--alert,
+.feed--full .feed__item--quote {
+  border-left-color: var(--color-warning);
+}
+
+.feed--full .feed__item--blocked,
+.feed--full .feed__item--denied,
+.feed--full .feed__item--refused {
+  border-left-color: var(--color-danger);
+}
+
+@media (max-width: 560px) {
+  .feed__item,
+  .feed--full .feed__item {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .feed--full .feed__item {
+    padding: var(--space-4) var(--space-3);
+  }
+}

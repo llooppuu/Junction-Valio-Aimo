@@ -4,6 +4,14 @@ import PageHero from '../ui/PageHero.tsx';
 import { StatCard } from '../ui/Card.tsx';
 import StockAlertCard from '../workspace/StockAlertCard.tsx';
 import StandingOrderPanel from '../workspace/StandingOrderPanel.tsx';
+import AgentPanel from '../workspace/AgentPanel.tsx';
+import {
+  ApprovalsPanel,
+  LiveActivityPanel,
+  MandatePanel,
+  RulesPanel,
+  StartOverPanel,
+} from '../workspace/SidePanels.tsx';
 import { useDemoState } from '../../lib/demo-state.tsx';
 import { formatEuro } from '../../lib/format.ts';
 import { kitchens, getKitchen, standingOrders } from '../../data/mock.ts';
@@ -12,6 +20,7 @@ import '../../styles/workspace.css';
 
 export default function WorkspaceView() {
   const [kitchenId, setKitchenId] = useState<KitchenId>('hotel');
+  const [running, setRunning] = useState(false);
   const { quotes, orders, runs, alerts } = useDemoState();
 
   const kitchen = getKitchen(kitchenId);
@@ -74,7 +83,7 @@ export default function WorkspaceView() {
           <StatCard
             label="Agent runs"
             value={kitchenRuns.length}
-            sub={kitchenRuns.length === 0 ? 'Idle' : 'Active'}
+            sub={running ? 'Working' : 'Idle'}
             icon={<Bot size={18} />}
           />
         </div>
@@ -96,6 +105,19 @@ export default function WorkspaceView() {
         )}
 
         {standingOrder && <StandingOrderPanel order={standingOrder} />}
+
+        <div className="workspace__columns">
+          <div className="workspace__main">
+            <AgentPanel kitchen={kitchen} onRunningChange={setRunning} />
+          </div>
+          <aside className="workspace__side" aria-label={`${kitchen.name} approvals, rules and activity`}>
+            <ApprovalsPanel kitchen={kitchen} />
+            <RulesPanel kitchen={kitchen} />
+            <MandatePanel kitchen={kitchen} />
+            <LiveActivityPanel />
+            <StartOverPanel />
+          </aside>
+        </div>
       </div>
     </>
   );

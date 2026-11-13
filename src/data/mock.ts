@@ -3,7 +3,9 @@
  * here, and changes made in the UI live only in memory.
  */
 import type {
+  ActivityEntry,
   AgentRun,
+  ExamplePrompt,
   Kitchen,
   KitchenId,
   Order,
@@ -250,4 +252,120 @@ export const standingOrders: StandingOrder[] = [
       { product: 'Fazer Ruispalat rye bread 12 pcs 660 g', history: [18, 18, 18, 20, 18, 18, 18, 18], renewal: 20, unitPrice: 3.15 },
     ],
   },
+];
+
+// ---------------------------------------------------------------------------
+// Activity history (append-only), newest first
+// ---------------------------------------------------------------------------
+
+export const activity: ActivityEntry[] = [
+  {
+    id: 'act-6',
+    time: '01:13:26',
+    kitchenId: 'school',
+    actor: 'agent',
+    kind: 'proposal',
+    ref: 'AL-0003',
+    text: 'AL-0003: Oatly iMat for Cooking 1L from OATLY EMEA AB TUORE: €0.70 less than the requested product (€24.80 in total), not Finnish origin.',
+    detail: 'Proposed only, nothing ordered. 10 packages for €24.80, delivered 2026-11-16.',
+  },
+  {
+    id: 'act-5',
+    time: '01:13:26',
+    kitchenId: 'school',
+    actor: 'agent',
+    kind: 'alert',
+    ref: 'AL-0003',
+    text: 'AL-0003: Oddlygood® Cooking Oat 1 l original gluten free from VALIO OY TUORE is Valio Aimo cannot deliver it on any date. Affects 10 on the weekly school kitchen order for 2026-11-16.',
+    detail: "Noticed by the agent's stock watch, without a request.",
+  },
+  {
+    id: 'act-4',
+    time: '01:13:26',
+    kitchenId: 'school',
+    actor: 'agent',
+    kind: 'proposal',
+    ref: 'AL-0002',
+    text: 'AL-0002 (Roasted beetroot soup with oat cream): Fazer Aito Oat for Cooking oat product for cooking 1L, gluten-free oat product for cooking from FAZER FINLAND OY / LIFESTYLE for the finishing cream: €1.00 more than the requested product (€26.50 in total).',
+    detail: 'Proposed only, nothing ordered. 10 packages for €26.50, delivered 2026-11-16.',
+  },
+  {
+    id: 'act-3',
+    time: '01:13:26',
+    kitchenId: 'school',
+    actor: 'agent',
+    kind: 'alert',
+    ref: 'AL-0002',
+    text: 'AL-0002: Oddlygood® Cooking 1 l UHT from VALIO OY TUORE is Valio Aimo cannot deliver it on any date. Affects Roasted beetroot soup with oat cream.',
+    detail: "Noticed by the agent's stock watch, without a request.",
+  },
+  {
+    id: 'act-2',
+    time: '01:13:26',
+    kitchenId: 'hotel',
+    actor: 'agent',
+    kind: 'proposal',
+    ref: 'AL-0001',
+    text: 'AL-0001 (Roasted beetroot soup with oat cream): Fazer Aito Oat for Cooking oat product for cooking 1L, gluten-free oat product for cooking from FAZER FINLAND OY / LIFESTYLE for the finishing cream: €2.00 more than the requested product (€53.00 in total).',
+    detail: 'Proposed only, nothing ordered. 20 packages for €53.00, delivered 2026-11-16.',
+  },
+  {
+    id: 'act-1',
+    time: '01:13:26',
+    kitchenId: 'hotel',
+    actor: 'agent',
+    kind: 'alert',
+    ref: 'AL-0001',
+    text: 'AL-0001: Oddlygood® Cooking 1 l UHT from VALIO OY TUORE is Valio Aimo cannot deliver it on any date. Affects Roasted beetroot soup with oat cream; 2 on the weekly kitchen order for 2026-11-16.',
+    detail: "Noticed by the agent's stock watch, without a request.",
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Agent workspace: example requests and the products the simulated agent uses
+// ---------------------------------------------------------------------------
+
+export const examplePrompts: ExamplePrompt[] = [
+  {
+    eyebrow: "The brief's example",
+    text: EXAMPLE_REQUEST,
+    hint: 'Price, stock, and a Monday deadline',
+  },
+  {
+    eyebrow: 'Reliability or price?',
+    text: "Which lactose-free milk supplier is the most reliable for delivery by Monday, and what does it cost compared with the cheapest? Don't create a quote.",
+    hint: 'Compares delivery reliability and labels',
+  },
+  {
+    eyebrow: 'Certified seafood',
+    text: 'Which MSC- or ASC-certified fish can you deliver by Tuesday? Compare them for me.',
+    hint: 'Labels, not just price',
+  },
+];
+
+/** Lactose-free milks the simulated agent compares, most reliable first. */
+export const lactoseFreeMilks = [
+  {
+    code: '408731',
+    name: 'Valio Eila® lactose free semi-skimmed milk drink 1 l',
+    supplier: 'VALIO OY',
+    pricePerLitre: 1.32,
+    reliability: 0.99,
+    stockLitres: 4200,
+  },
+  {
+    code: '412290',
+    name: 'Arla Lactose free milk drink 1.5% 1 l',
+    supplier: 'ARLA OY',
+    pricePerLitre: 1.24,
+    reliability: 0.94,
+    stockLitres: 1800,
+  },
+];
+
+/** Certified fish the simulated agent can deliver on Tuesday 17 November. */
+export const certifiedFish = [
+  { name: 'Pollock fillet MSC 1 kg frozen', supplier: 'KESPRO KALA OY', pricePerKg: 9.85, label: 'MSC' },
+  { name: 'Atlantic cod loin MSC 1 kg frozen', supplier: 'PAKKASPOJAT OY', pricePerKg: 14.4, label: 'MSC' },
+  { name: 'Norwegian salmon fillet ASC 1.2 kg', supplier: 'HÄTÄLÄ OY', pricePerKg: 16.9, label: 'ASC' },
 ];
