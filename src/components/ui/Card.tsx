@@ -60,17 +60,14 @@ export function Panel({
       aria-labelledby={headingId}
     >
       <div className="panel__head">
-        <div className="panel__titles">
-          <Heading id={headingId} className="panel__title">
-            {titleIcon && (
-              <span className="panel__title-icon" aria-hidden="true">
-                {titleIcon}
-              </span>
-            )}
-            {title}
-          </Heading>
-          {subtitle && <p className="panel__subtitle">{subtitle}</p>}
-        </div>
+        <Heading id={headingId} className="panel__title">
+          {titleIcon && (
+            <span className="panel__title-icon" aria-hidden="true">
+              {titleIcon}
+            </span>
+          )}
+          {title}
+        </Heading>
         {action && <div className="panel__action">{action}</div>}
         {!action && icon && (
           <span className="panel__icon" aria-hidden="true">
@@ -78,6 +75,7 @@ export function Panel({
           </span>
         )}
       </div>
+      {subtitle && <p className="panel__subtitle">{subtitle}</p>}
       {children !== undefined && <div className="panel__body">{children}</div>}
     </section>
   );

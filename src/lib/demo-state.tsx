@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
-import { agentRuns, orders, quotes } from '../data/mock.ts';
-import type { AgentRun, Order, Quote } from './types.ts';
+import { agentRuns, orders, quotes, stockAlerts } from '../data/mock.ts';
+import type { AgentRun, Order, Quote, StockAlert } from './types.ts';
 
 /**
  * In-memory state for the demo. It starts from the sample data in
@@ -10,10 +10,11 @@ interface DemoState {
   quotes: Quote[];
   orders: Order[];
   runs: AgentRun[];
+  alerts: StockAlert[];
 }
 
 interface DemoStateValue extends DemoState {
-  /** Clears quotes, orders and agent runs. */
+  /** Clears quotes, orders, alerts and agent runs. */
   reset: () => void;
 }
 
@@ -22,6 +23,7 @@ function initialState(): DemoState {
     quotes: [...quotes],
     orders: [...orders],
     runs: [...agentRuns],
+    alerts: [...stockAlerts],
   };
 }
 
@@ -31,7 +33,7 @@ export function DemoStateProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<DemoState>(initialState);
 
   const reset = useCallback(() => {
-    setState({ quotes: [], orders: [], runs: [] });
+    setState({ quotes: [], orders: [], runs: [], alerts: [] });
   }, []);
 
   const value = useMemo(() => ({ ...state, reset }), [state, reset]);

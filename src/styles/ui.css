@@ -184,11 +184,8 @@
   gap: var(--space-4);
 }
 
-.panel__titles {
-  min-width: 0;
-}
-
 .panel__title {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -207,7 +204,7 @@
 
 .panel__action {
   flex-shrink: 0;
-  padding-top: var(--space-1);
+  padding-top: 6px;
 }
 
 .panel__icon {
@@ -487,7 +484,7 @@
 
 .page-hero__text {
   min-width: 0;
-  max-width: 44rem;
+  max-width: 44.5rem;
 }
 
 .page-hero__eyebrow {
