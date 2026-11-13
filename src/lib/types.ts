@@ -136,6 +136,118 @@ export interface RunStep {
   summary: string;
 }
 
+export type AllergenId =
+  | 'gluten'
+  | 'crustaceans'
+  | 'eggs'
+  | 'fish'
+  | 'peanuts'
+  | 'soy'
+  | 'milk'
+  | 'treeNuts'
+  | 'celery'
+  | 'mustard'
+  | 'sesame'
+  | 'sulphites'
+  | 'lupin'
+  | 'molluscs';
+
+export interface Allergen {
+  id: AllergenId;
+  name: string;
+  /** GS1 allergen type code. */
+  code: string;
+}
+
+export type LabelId =
+  | 'euOrganic'
+  | 'msc'
+  | 'asc'
+  | 'fairtrade'
+  | 'rainforest'
+  | 'nordicSwan'
+  | 'euEcolabel'
+  | 'krav'
+  | 'finnish'
+  | 'heart';
+
+export type StockStatus =
+  | { status: 'plenty' }
+  | { status: 'packages'; count: number; amount: string }
+  | { status: 'none' }
+  | { status: 'undeliverable' }
+  | { status: 'cutoff'; message: string };
+
+export interface Nutrition {
+  energyKj: number;
+  energyKcal: number;
+  fat: number;
+  carbohydrate: number;
+  sugars: number;
+  protein: number;
+  salt: number;
+}
+
+export interface Product {
+  id: string;
+  /** Wholesaler's product code. */
+  code: string;
+  gtin: string;
+  category: string;
+  name: string;
+  /** Finnish name, used by the search. */
+  nameFi: string;
+  brand?: string;
+  supplier: string;
+  origin: string;
+  price: number;
+  /** Selling unit, such as "item", "kg" or "bottle". */
+  unit: string;
+  comparePrice: number;
+  compareUnit: string;
+  vat: number;
+  packageSize: string;
+  stock: StockStatus;
+  delivery?: { date: string; label: string; orderBy?: string };
+  reliability?: number;
+  /** kg CO2e per kg. */
+  carbon?: number;
+  /** null when the manufacturer has not declared allergens; "n/a" for non-food. */
+  allergens: { contains: AllergenId[]; freeFrom: AllergenId[] } | null | 'n/a';
+  labels: LabelId[];
+  tags: string[];
+  nutrition?: Nutrition;
+  answeredAt: string;
+  signedUntil: string;
+}
+
+export interface SubstituteCriterion {
+  name: string;
+  weight: number;
+  score: number;
+  note: string;
+}
+
+export interface Substitute {
+  rank: 'best' | 'better' | 'good';
+  score: number;
+  name: string;
+  supplier: string;
+  price: number;
+  priceNote: string;
+  order: string;
+  delivery: string;
+  deliveredAsOrdered: string;
+  criteria: SubstituteCriterion[];
+}
+
+export interface SubstituteSet {
+  productId: string;
+  reason: string;
+  candidates: Substitute[];
+  unsuitable: { name: string; reason: string }[];
+}
+
 export interface SupplierReliability {
   name: string;
   productCount: number;
