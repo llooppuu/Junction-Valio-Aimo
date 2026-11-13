@@ -1,0 +1,427 @@
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  fetchAgentRun,
+  fetchAgentRuns,
+  fetchAgentStatus,
+  startAgentRun,
+  type AgentRun,
+  type AgentStep,
+} from "../lib/api";
+import { formatEuroCents } from "../lib/format";
+import { useI18n, type I18n } from "../lib/i18n";
+import type { MessageKey } from "../lib/messages";
+import { personName } from "../lib/names";
+import { MenuPlanTable } from "./MenuPlanTable";
+
+const POLL_INTERVAL_MS = 700;
+
+interface Example {
+  key: string;
+  title: MessageKey;
+  note: MessageKey;
+  message: MessageKey;
+}
+
+/** Starting points shown before the first request, per kitchen. The hotel's first is the judges' example. */
+const EXAMPLES: Record<string, Example[]> = {
+  "demo-agent": [
+    { key: "brief", title: "agent.ex.brief.title", note: "agent.ex.brief.note", message: "agent.example" },
+    { key: "reliability", title: "agent.ex.reliability.title", note: "agent.ex.reliability.note", message: "agent.ex.reliability.message" },
+    { key: "seafood", title: "agent.ex.seafood.title", note: "agent.ex.seafood.note", message: "agent.ex.seafood.message" },
+  ],
+  "school-agent": [
+    { key: "oat", title: "agent.ex.oat.title", note: "agent.ex.oat.note", message: "agent.ex.oat.message" },
+    { key: "trap", title: "agent.ex.trap.title", note: "agent.ex.trap.note", message: "agent.ex.trap.message" },
+    { key: "rules", title: "agent.ex.rules.title", note: "agent.ex.rules.note", message: "agent.ex.rules.message" },
+  ],
+};
+
+type StatusState =
+  | { status: "loading" }
+  | { status: "error"; message: string }
+  | { status: "off" }
+  | { status: "on"; model: string };
+
+interface Suggestion {
+  label: string;
+  message: string;
+}
+
+/** One-click follow-ups for the step the conversation has reached. */
+function suggestionsFor(last: AgentRun | undefined, t: I18n["t"]): Suggestion[] {
+  if (!last) return [];
+  if (last.status !== "completed" || !last.quote) return [];
+  const id = last.quote.id;
+  switch (last.outcome) {
+    case "quote_ready":
+      return [{ label: t("agent.suggest.order"), message: t("agent.suggest.orderMessage") }];
+    case "awaiting_approval":
+      return [
+        { label: t("agent.suggest.approved", { id }), message: t("agent.suggest.approvedMessage", { id }) },
+        { label: t("agent.suggest.rejected", { id }), message: t("agent.suggest.rejectedMessage", { id }) },
+      ];
+    case "needs_attention":
+      return [{ label: t("agent.suggest.newQuote"), message: t("agent.suggest.newQuoteMessage") }];
+    default:
+      return [];
+  }
+}
+
+interface AgentPanelProps {
+  /** A request handed over from elsewhere in the app, such as a stock alert, sent once as soon as the agent is ready. */
+  launch?: { message: string; at: number } | null;
+  /** Called once the launched request has been sent. */
+  onLaunched?: (at: number) => void;
+  /** The kitchen's agent that acts for new conversations. */
+  agentId: string;
+  agentName: string;
+  /** Called whenever the agent may have changed something, so other views refresh. */
+  onActivity: () => void;
+}
+
+/** Lets the buyer hand requests to the AI agent and watch it work through the API. */
+export function AgentPanel({ launch = null, onLaunched, agentId, agentName, onActivity }: AgentPanelProps) {
+  const { t, language } = useI18n();
+  const [agent, setAgent] = useState<StatusState>({ status: "loading" });
+  const [runs, setRuns] = useState<AgentRun[]>([]);
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const onActivityRef = useRef(onActivity);
+  onActivityRef.current = onActivity;
+  const threadRef = useRef<HTMLDivElement>(null);
+  const launchedRef = useRef<number | null>(null);
+  // Follows new steps unless the buyer has scrolled up to read something earlier.
+  const followRef = useRef(true);
+
+  useEffect(() => {
+    const thread = threadRef.current;
+    if (thread && followRef.current) thread.scrollTop = thread.scrollHeight;
+  }, [runs]);
+
+  const last = runs.at(-1);
+  const activeRunId = last?.status === "running" ? last.id : null;
+  const busy = sending || activeRunId !== null;
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchAgentStatus(controller.signal)
+      .then(async (status) => {
+        if (!status.available || !status.model) {
+          setAgent({ status: "off" });
+          return;
+        }
+        // After a page reload, pick up the latest conversation where it left off.
+        const all = (await fetchAgentRuns(controller.signal)).filter((run) => run.agent.id === agentId);
+        const latest = all[0]?.conversationId;
+        setRuns(latest ? all.filter((run) => run.conversationId === latest).reverse() : []);
+        setAgent({ status: "on", model: status.model });
+      })
+      .catch((caught: unknown) => {
+        if (!controller.signal.aborted) {
+          setAgent({ status: "error", message: caught instanceof Error ? caught.message : t("common.unknownError") });
+        }
+      });
+    return () => controller.abort();
+  }, [agentId]);
+
+  // Follows the running run, step by step, until it finishes.
+  useEffect(() => {
+    if (!activeRunId) return;
+    const controller = new AbortController();
+    let seenSteps = 0;
+    const timer = setInterval(() => {
+      fetchAgentRun(activeRunId, controller.signal)
+        .then((run) => {
+          setRuns((current) => current.map((candidate) => (candidate.id === run.id ? run : candidate)));
+          if (run.steps.length !== seenSteps || run.status !== "running") {
+            seenSteps = run.steps.length;
+            onActivityRef.current();
+          }
+        })
+        .catch((caught: unknown) => {
+          if (controller.signal.aborted) return;
+          setError(caught instanceof Error ? caught.message : t("agent.runLoadFailed"));
+          setRuns((current) =>
+            current.map((candidate) =>
+              candidate.id === activeRunId ? { ...candidate, status: "failed", error: t("agent.runLost") } : candidate,
+            ),
+          );
+        });
+    }, POLL_INTERVAL_MS);
+    return () => {
+      controller.abort();
+      clearInterval(timer);
+    };
+  }, [activeRunId]);
+
+  async function send(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed || busy) return;
+    setSending(true);
+    setError(null);
+    try {
+      const run = await startAgentRun(trimmed, last?.conversationId, agentId, language);
+      // A new request always jumps to the bottom of the thread.
+      followRef.current = true;
+      setRuns((current) => [...current, run]);
+      setMessage("");
+      onActivityRef.current();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : t("agent.sendFailed"));
+    } finally {
+      setSending(false);
+    }
+  }
+
+  // Sends a handed-over request once, when the agent is ready and the restored thread is in place.
+  useEffect(() => {
+    if (launch && agent.status === "on" && launchedRef.current !== launch.at) {
+      launchedRef.current = launch.at;
+      onLaunched?.(launch.at);
+      void send(launch.message);
+    }
+    // send reads the latest state on each render; the launch should fire only when these change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [launch, agent.status]);
+
+  function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    void send(message);
+  }
+
+  return (
+    <section aria-labelledby="agent-heading" className="agent">
+      <div className="section-header agent-header">
+        <h2 id="agent-heading">{agentName}</h2>
+        {agent.status === "on" && <p className="agent-model">{agent.model}</p>}
+        {runs.length > 0 && !busy && (
+          <button type="button" className="button-secondary button-small" onClick={() => setRuns([])}>
+            {t("agent.newConversation")}
+          </button>
+        )}
+      </div>
+      <p className="section-muted agent-intro">{t("agent.intro")}</p>
+
+      {agent.status === "loading" && <p className="section-muted">{t("agent.checking")}</p>}
+
+      {agent.status === "error" && (
+        <div role="alert" className="catalog-message catalog-message-error">
+          <h3>{t("agent.unreachable")}</h3>
+          <p className="catalog-message-detail">{agent.message}</p>
+        </div>
+      )}
+
+      {agent.status === "off" && (
+        <div className="agent-off">
+          <h3>{t("agent.offTitle")}</h3>
+          <p>{t("agent.offText")}</p>
+        </div>
+      )}
+
+      {agent.status === "on" && (
+        <>
+          {runs.length === 0 && !busy && (
+            <div className="agent-examples" aria-label={t("agent.examples")}>
+              {(EXAMPLES[agentId] ?? []).map((example) => (
+                <button key={example.key} type="button" className="agent-example" onClick={() => void send(t(example.message))}>
+                  <span className="agent-example-title">{t(example.title)}</span>
+                  <span className="agent-example-message">“{t(example.message)}”</span>
+                  <span className="agent-example-note">{t(example.note)}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {runs.length > 0 && (
+            <div
+              ref={threadRef}
+              className="agent-thread"
+              tabIndex={0}
+              aria-label={t("agent.thread")}
+              onScroll={(event) => {
+                const thread = event.currentTarget;
+                followRef.current = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 80;
+              }}
+            >
+              <ol className="agent-runs">
+                {runs.map((run) => (
+                  <li key={run.id}>
+                    <RunView run={run} latest={run.id === last?.id} />
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+
+          {error && (
+            <p role="alert" className="agent-error">
+              {error}
+            </p>
+          )}
+
+          {!busy && suggestionsFor(last, t).length > 0 && (
+            <div className="agent-suggestions" aria-label={t("agent.suggested")}>
+              {suggestionsFor(last, t).map((suggestion) => (
+                <button
+                  key={suggestion.message}
+                  type="button"
+                  className="agent-suggestion"
+                  onClick={() => void send(suggestion.message)}
+                >
+                  {suggestion.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <form className="agent-form" onSubmit={onSubmit}>
+            <label htmlFor="agent-message" className="visually-hidden">
+              {t("agent.yourRequest")}
+            </label>
+            <textarea
+              id="agent-message"
+              rows={2}
+              maxLength={2000}
+              placeholder={runs.length === 0 ? t("agent.example") : t("agent.replyPlaceholder")}
+              value={message}
+              disabled={busy}
+              onChange={(event) => setMessage(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  void send(message);
+                }
+              }}
+            />
+            <button type="submit" className="button-primary" disabled={busy || !message.trim()}>
+              {busy ? t("agent.working") : t("agent.send")}
+            </button>
+          </form>
+        </>
+      )}
+    </section>
+  );
+}
+
+function StepList({ steps }: { steps: AgentStep[] }) {
+  const { t } = useI18n();
+  return (
+    <ol className="agent-steps" aria-label={t("agent.steps")}>
+      {steps.map((step) => (
+        <StepView key={step.index} step={step} />
+      ))}
+    </ol>
+  );
+}
+
+/** One request and the agent's work. Earlier runs fold their steps away so the thread stays short. */
+function RunView({ run, latest }: { run: AgentRun; latest: boolean }) {
+  const { t, tn } = useI18n();
+  const calls = run.steps.filter((step) => step.kind === "tool_call");
+  const refused = calls.filter((step) => step.kind === "tool_call" && !step.ok).length;
+  return (
+    <article className="agent-run" aria-label={t("agent.runLabel", { id: run.id })}>
+      <p className="agent-request">
+        <span className="agent-role">{t("agent.you")}</span>
+        {run.request}
+      </p>
+
+      <div className="agent-work">
+        <p className="agent-role agent-role-agent">
+          <span className="agent-avatar" aria-hidden="true">
+            AI
+          </span>
+          {personName(run.agent.name)}
+          {run.status === "running" && (
+            <span className="agent-working">
+              <span className="spinner" aria-hidden="true" /> {t("agent.workingInline")}
+            </span>
+          )}
+        </p>
+        {run.steps.length > 0 &&
+          (run.status === "running" ? (
+            <StepList steps={run.steps} />
+          ) : (
+            <details className="agent-steps-fold" open={latest}>
+              <summary>
+                {tn("agent.calls.one", calls.length)}
+                {refused > 0 && <span className="agent-steps-refused"> · {t("agent.refused", { count: refused })}</span>}
+              </summary>
+              <StepList steps={run.steps} />
+            </details>
+          ))}
+        {run.status === "running" && run.steps.length === 0 && <p className="section-muted">{t("agent.reading")}</p>}
+
+        {run.status === "completed" && (
+          <>
+            {run.outcome && (
+              <p className={`agent-outcome agent-outcome-${run.outcome}`}>
+                {t(`agent.outcome.${run.outcome}`)}
+                {run.quote && (
+                  <>
+                    {" "}
+                    · {run.quote.id} · {formatEuroCents(run.quote.totalEurCents)}
+                  </>
+                )}
+              </p>
+            )}
+            <p className="agent-reply">{run.reply}</p>
+          </>
+        )}
+
+        {run.status === "failed" && (
+          <p role="alert" className="agent-error">
+            {run.error}
+          </p>
+        )}
+      </div>
+    </article>
+  );
+}
+
+function StepView({ step }: { step: AgentStep }) {
+  const { t } = useI18n();
+  if (step.kind === "message") {
+    return <li className="agent-step agent-step-message">{step.text}</li>;
+  }
+  return (
+    <li className={`agent-step ${step.ok ? "agent-step-ok" : "agent-step-refused"}`}>
+      <span className="agent-step-tool">{step.tool}</span>
+      <span className="agent-step-status">{step.httpStatus || t("agent.notSent")}</span>
+      <span className="agent-step-http">
+        {step.method} /api{step.path}
+      </span>
+      <span className="agent-step-summary">{step.summary}</span>
+      {step.permission && <StepPermission permission={step.permission} />}
+      {step.plan && (
+        <span className="step-plan">
+          <MenuPlanTable plan={step.plan} />
+        </span>
+      )}
+    </li>
+  );
+}
+
+const DECISIONS = ["within_limit", "needs_approval", "blocked", "created_by_buyer"];
+
+const CHECK_ICONS: Record<string, string> = { passed: "✓", needs_approval: "!", blocked: "✕" };
+
+/** The server's permission check inside a step, so the guardrails are visible as they happen. */
+function StepPermission({ permission }: { permission: NonNullable<Extract<AgentStep, { kind: "tool_call" }>["permission"]> }) {
+  const { t } = useI18n();
+  return (
+    <span className={`step-permission step-permission-${permission.decision}`}>
+      <span className="step-permission-decision">{DECISIONS.includes(permission.decision) ? t(`decision.${permission.decision}` as MessageKey) : permission.decision}</span>
+      {permission.checks.length > 0 && (
+        <span className="step-permission-checks">
+          {permission.checks.map((check) => (
+            <span key={check.rule} className={`step-check step-check-${check.outcome}`} title={check.detail}>
+              {CHECK_ICONS[check.outcome] ?? "·"} {t(`rule.${check.rule}`)}
+            </span>
+          ))}
+        </span>
+      )}
+    </span>
+  );
+}

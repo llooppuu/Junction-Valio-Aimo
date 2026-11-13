@@ -1,0 +1,987 @@
+/* UI patterns brought over from our 2025 project (TTA-042): dashboard, risk warnings, and the substitution dialog. */
+
+.button-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.section-note {
+  margin-bottom: 1rem;
+  font-size: 0.9375rem;
+}
+
+/* Stat cards with icons */
+
+.stat-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.stat-icon {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+.stat-attention .stat-icon {
+  color: var(--color-warning);
+}
+
+/* Dashboard */
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.dash-card {
+  min-width: 0;
+  padding: 1.125rem 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.dash-wide {
+  grid-column: 1 / -1;
+}
+
+.dash-attention {
+  border-top: 3px solid var(--color-warning);
+}
+
+.dash-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.dash-card-header h2 {
+  font-size: 1.0625rem;
+}
+
+.dash-card-header p {
+  font-size: 0.875rem;
+}
+
+.dash-card-header .button-link {
+  margin-left: 0;
+  white-space: nowrap;
+}
+
+.dash-empty {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0;
+  color: var(--color-text-muted);
+}
+
+.dash-list {
+  display: grid;
+  /* Without this, a long reason on one line would widen the column past the card. */
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dash-list li + li {
+  border-top: 1px solid var(--color-border);
+}
+
+.dash-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  padding: 0.625rem 0.25rem;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dash-row:hover {
+  background: var(--color-background);
+}
+
+.dash-row:focus-visible {
+  outline: 3px solid var(--color-text);
+  outline-offset: 1px;
+}
+
+.dash-row-main {
+  min-width: 0;
+}
+
+.dash-row-sub {
+  display: block;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-row-amount {
+  flex-shrink: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.supplier-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.supplier-row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 12rem) minmax(4rem, 1fr) 3rem auto;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9375rem;
+}
+
+.supplier-name {
+  font-weight: 600;
+}
+
+.supplier-bar {
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-skeleton);
+}
+
+.supplier-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.risk-fill-low {
+  background: var(--color-accent);
+}
+
+.risk-fill-moderate {
+  background: #c98a1b;
+}
+
+.risk-fill-high {
+  background: var(--color-danger);
+}
+
+.supplier-rate {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.dash-cta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  margin-top: 1rem;
+  padding: 1rem 1.25rem;
+  border: 1px dashed var(--color-accent);
+  border-radius: var(--radius-large);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dash-cta span {
+  flex: 1;
+}
+
+.dash-cta:hover {
+  border-style: solid;
+}
+
+.dash-cta:focus-visible {
+  outline: 3px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+@media (max-width: 48rem) {
+  .dashboard-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .supplier-row {
+    grid-template-columns: minmax(0, 1fr) 3rem;
+  }
+
+  .supplier-bar {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .supplier-row .risk-badge {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}
+
+/* Delivery risk, like the reliability warnings in our 2025 project */
+
+.risk-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.0625rem 0.5rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.risk-badge.risk-low {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.risk-badge.risk-moderate {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+.risk-badge.risk-high {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.product-risk {
+  margin-top: 0.5rem;
+}
+
+.risk-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  margin-top: 0.625rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid;
+  border-radius: var(--radius-small);
+  font-size: 0.875rem;
+}
+
+.risk-note svg {
+  flex-shrink: 0;
+  margin-top: 0.0625rem;
+}
+
+.risk-note.risk-moderate {
+  border-color: #e7c27d;
+  background: var(--color-warning-soft);
+  color: #6f4200;
+}
+
+.risk-note.risk-high {
+  border-color: #e3a294;
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+/* Substitution dialog: the requested product beside each substitute */
+
+.substitutes-dialog {
+  width: min(64rem, calc(100vw - 2rem));
+  max-height: min(88vh, 52rem);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-large);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-raised);
+}
+
+.substitutes-dialog::backdrop {
+  background: rgb(18 55 44 / 45%);
+}
+
+.dialog-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.125rem 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.dialog-header h2 {
+  font-size: 1.1875rem;
+}
+
+.dialog-header p {
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.dialog-close {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.dialog-close:hover {
+  background: var(--color-background);
+}
+
+.dialog-close:focus-visible {
+  outline: 3px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+.dialog-body {
+  padding: 1.125rem 1.25rem 1.25rem;
+}
+
+.compare-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13.5rem), 1fr));
+  gap: 0.75rem;
+}
+
+.compare-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.875rem;
+  border: 1px solid var(--color-border);
+  border-top: 4px solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  font-size: 0.875rem;
+}
+
+.compare-card h3 {
+  font-size: 0.9375rem;
+  line-height: 1.3;
+}
+
+.compare-original {
+  border-top-color: var(--color-danger);
+  background: #fdf8f6;
+}
+
+.compare-card.substitute-best {
+  border-top-color: var(--color-accent);
+  box-shadow: var(--shadow-card);
+}
+
+.compare-card.substitute-better {
+  border-top-color: #4f8a76;
+}
+
+.compare-tag {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.compare-original .compare-tag {
+  justify-content: flex-start;
+  color: var(--color-danger);
+}
+
+.compare-price {
+  font-size: 1.375rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.compare-unmet {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.compare-facts {
+  display: grid;
+  gap: 0.125rem;
+  padding-top: 0.375rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.compare-facts > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.compare-facts dt {
+  color: var(--color-text-muted);
+}
+
+.compare-facts dd {
+  font-weight: 500;
+  text-align: right;
+}
+
+.compare-card .risk-badge {
+  align-self: flex-start;
+}
+
+/* GS1 allergen statements (TTA-039) */
+
+.allergen-code {
+  margin-left: 0.25rem;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+.allergen-freefrom {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+/* Supplier reliability on time and in full (TTA-040) */
+
+.supplier-parts,
+.product-reliability-parts {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.product-reliability-parts {
+  margin-top: 0.25rem;
+  text-align: right;
+}
+
+.supplier-formula {
+  margin-top: 0.75rem;
+  padding-top: 0.625rem;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 0.75rem;
+}
+
+/* Substitute score breakdown (TTA-041) */
+
+.score-breakdown {
+  display: grid;
+  gap: 0.375rem;
+  margin-top: 0.25rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.score-breakdown li {
+  display: grid;
+  grid-template-columns: 6.5rem 1fr 1.75rem;
+  align-items: center;
+  gap: 0 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.score-label {
+  font-weight: 600;
+}
+
+.score-weight {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.score-bar {
+  height: 0.375rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-skeleton);
+}
+
+.score-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-accent);
+}
+
+.score-value {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.score-note {
+  grid-column: 1 / -1;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+/* Signed offers (TTA-033) */
+
+.signed-offer {
+  margin-top: 0.625rem;
+  font-size: 0.8125rem;
+}
+
+.signed-offer-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.625rem;
+  color: var(--color-text-muted);
+}
+
+.signed-offer-line svg {
+  color: var(--color-accent);
+}
+
+.signed-offer-line .button-link {
+  margin-left: 0;
+  font-size: 0.8125rem;
+}
+
+.signed-offer-tamper {
+  color: var(--color-danger);
+}
+
+.signed-offer-result {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+  margin-top: 0.375rem;
+  padding: 0.375rem 0.5rem;
+  border-radius: var(--radius-small);
+}
+
+.signed-offer-result svg {
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.signed-offer-valid {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.signed-offer-invalid {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+/* The server's permission check inside an agent step */
+
+.step-permission {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  grid-column: 1 / -1;
+  margin-top: 0.25rem;
+  padding-top: 0.25rem;
+  border-top: 1px dashed var(--color-border-strong);
+}
+
+.step-permission-decision {
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.step-permission-within_limit .step-permission-decision,
+.step-permission-created_by_buyer .step-permission-decision {
+  color: var(--color-accent);
+}
+
+.step-permission-needs_approval .step-permission-decision {
+  color: var(--color-warning);
+}
+
+.step-permission-blocked .step-permission-decision {
+  color: var(--color-danger);
+}
+
+.step-permission-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.step-check {
+  padding: 0 0.375rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  cursor: help;
+}
+
+.step-check-passed {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.step-check-needs_approval {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  font-weight: 700;
+}
+
+.step-check-blocked {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+/* Alternatives considered (TTA-022) */
+
+.alternatives {
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.alternatives summary {
+  color: var(--color-accent);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.alternatives summary:focus-visible {
+  outline: 3px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+.alternatives-list {
+  display: grid;
+  gap: 0.375rem;
+  margin-top: 0.5rem;
+}
+
+.alternative {
+  display: grid;
+  grid-template-columns: 6rem minmax(8rem, 12rem) 1fr;
+  gap: 0.25rem 0.75rem;
+  padding: 0.375rem 0.5rem;
+  border-left: 3px solid var(--color-border-strong);
+  border-radius: 0 var(--radius-small) var(--radius-small) 0;
+  background: var(--color-background);
+}
+
+.alternative-chosen {
+  border-left-color: var(--color-accent);
+}
+
+.alternative-excluded {
+  border-left-color: var(--color-danger);
+}
+
+.alternative-verdict {
+  font-weight: 700;
+}
+
+.alternative-chosen .alternative-verdict {
+  color: var(--color-accent);
+}
+
+.alternative-excluded .alternative-verdict {
+  color: var(--color-danger);
+}
+
+@media (max-width: 40rem) {
+  .alternative {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Wholesaler view (TTA-022) */
+
+.wholesale-heading {
+  margin-bottom: 0.75rem;
+  font-size: 1.125rem;
+}
+
+.wholesale-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.wholesale-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.wholesale-table th,
+.wholesale-table td {
+  padding: 0.625rem 0.875rem;
+  border-bottom: 1px solid var(--color-border);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.wholesale-table thead th {
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.wholesale-table th[scope="row"],
+.wholesale-table thead th:first-child {
+  text-align: left;
+}
+
+.wholesale-table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.cell-attention {
+  color: var(--color-warning);
+  font-weight: 700;
+}
+
+.cell-danger {
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+.wholesale-grid {
+  margin-top: 1.5rem;
+}
+
+.wholesale-row {
+  cursor: default;
+}
+
+.wholesale-row:hover {
+  background: none;
+}
+
+.wholesale-time {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.wholesale-log {
+  margin-top: 1.5rem;
+}
+
+/* Menu calculation (TTA-025) */
+
+.step-plan {
+  grid-column: 1 / -1;
+  margin-top: 0.375rem;
+}
+
+.menu-plan {
+  margin-top: 0.375rem;
+}
+
+.menu-plan-title {
+  margin-bottom: 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.menu-plan-wrap {
+  overflow-x: auto;
+}
+
+.menu-plan-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-surface);
+  font-size: 0.8125rem;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+.menu-plan-table th,
+.menu-plan-table td {
+  padding: 0.3125rem 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.menu-plan-table thead th {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.menu-plan-table th[scope="row"],
+.menu-plan-table thead th:first-child {
+  font-weight: 500;
+  text-align: left;
+  white-space: normal;
+}
+
+.menu-plan-table tfoot th,
+.menu-plan-table tfoot td {
+  border-bottom: 0;
+  font-weight: 700;
+}
+
+.menu-plan-covered {
+  color: var(--color-text-muted);
+}
+
+.menu-plan-problem th,
+.menu-plan-problem .approval-supplier {
+  color: var(--color-danger);
+}
+
+/* Role-based substitutions (TTA-026) */
+
+.menu-plan-table .menu-plan-sub td {
+  padding: 0.375rem 0.5rem 0.5rem 1.25rem;
+  background: var(--color-background);
+  text-align: left;
+  white-space: normal;
+}
+
+.menu-plan-sub p {
+  margin: 0;
+}
+
+.menu-plan-sub-head {
+  font-weight: 500;
+}
+
+.menu-plan-role {
+  display: inline-block;
+  margin-right: 0.375rem;
+  padding: 0 0.375rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+.menu-plan-sub-note,
+.menu-plan-sub-ruled {
+  margin-top: 0.125rem;
+  color: var(--color-text-muted);
+}
+
+.menu-plan-sub-ruled {
+  color: var(--color-danger);
+}
+
+.menu-plan-sub-none .menu-plan-sub-head {
+  color: var(--color-danger);
+}
+
+.menu-plan-table tfoot .menu-plan-with-subs th,
+.menu-plan-table tfoot .menu-plan-with-subs td {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+/* Keep product names readable on a phone: the table scrolls inside its wrapper instead. */
+.menu-plan-table th[scope="row"],
+.menu-plan-table thead th:first-child {
+  min-width: 9rem;
+}
+
+.menu-plan-table .menu-plan-sub td {
+  min-width: 16rem;
+}
+
+/* Stock alerts (TTA-027) */
+
+.stock-alerts {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--color-warning);
+  border-left-width: 4px;
+  border-radius: var(--radius-large);
+  background: var(--color-warning-soft);
+}
+
+.stock-alerts-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.0625rem;
+}
+
+.stock-alert {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-small);
+  background: var(--color-surface);
+}
+
+.stock-alert p {
+  margin: 0;
+}
+
+.stock-alert-id {
+  margin-left: 0.5rem;
+  white-space: nowrap;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.stock-alert-affects {
+  margin-top: 0.25rem !important;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.stock-alert-proposals {
+  display: grid;
+  gap: 0.375rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.stock-alert-tradeoff {
+  display: block;
+  color: var(--color-text-muted);
+}
+
+.stock-alert-none {
+  color: var(--color-danger);
+}
+
+.stock-alert-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.activity-entry.activity-alert {
+  border-left-color: var(--color-warning);
+}

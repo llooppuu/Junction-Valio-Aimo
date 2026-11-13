@@ -1,0 +1,909 @@
+/* Redesign (TTA-038): surfaces, agent timeline, workspace cards, catalog filters, and orders. */
+
+[hidden] {
+  display: none !important;
+}
+
+/* Each card keeps its own height, so opening one card's details does not stretch its neighbours. */
+.product-grid {
+  align-items: start;
+}
+
+.product-card,
+.approval-card,
+.activity-list,
+.agent-work {
+  box-shadow: var(--shadow-card);
+}
+
+.product-card {
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.product-card:hover {
+  box-shadow: var(--shadow-raised);
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .product-card,
+  .product-card:hover {
+    transition: none;
+    transform: none;
+  }
+}
+
+.workspace-side > section,
+.agent {
+  min-width: 0;
+}
+
+/* Agent panel */
+
+.agent {
+  padding: clamp(1rem, 2.5vw, 1.5rem);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  background: linear-gradient(180deg, #fbfcf9, var(--color-surface) 12rem);
+  box-shadow: var(--shadow-card);
+}
+
+.agent .agent-work {
+  box-shadow: none;
+}
+
+/* The conversation scrolls inside the panel, so the message box stays in view however long it gets. */
+.agent-thread {
+  max-height: clamp(22rem, calc(100vh - 24rem), 42rem);
+  margin: 0 -0.5rem 0.75rem;
+  padding: 0.25rem 0.5rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  scrollbar-width: thin;
+}
+
+.agent-thread:focus-visible {
+  outline: 3px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+.agent-thread .agent-runs {
+  margin: 0.75rem 0;
+}
+
+.agent-steps-fold {
+  margin-top: 0.375rem;
+}
+
+.agent-steps-fold > summary {
+  color: var(--color-accent);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.agent-steps-fold > summary:focus-visible {
+  outline: 3px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+.agent-steps-refused {
+  color: var(--color-danger);
+}
+
+@media (max-width: 34rem) {
+  .agent-thread {
+    max-height: 65vh;
+  }
+}
+
+.agent-examples {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.agent-example {
+  display: grid;
+  align-content: start;
+  gap: 0.375rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.agent-example:first-child {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.agent-example:hover {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-card);
+}
+
+.agent-example:focus-visible {
+  outline: 3px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+.agent-example-title {
+  color: var(--color-accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.agent-example-message {
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+
+.agent-example-note {
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.agent-role-agent {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.agent-avatar {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: #ffffff;
+  font-size: 0.625rem;
+  font-weight: 800;
+}
+
+.agent-working {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.spinner {
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 2px solid var(--color-border-strong);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
+/* The steps read as a timeline: one dot per API call on a connecting line. */
+.agent-steps {
+  position: relative;
+  padding-left: 1.125rem;
+}
+
+.agent-steps::before {
+  content: "";
+  position: absolute;
+  top: 0.5rem;
+  bottom: 0.5rem;
+  left: 0.3125rem;
+  width: 2px;
+  background: var(--color-border);
+}
+
+.agent-step {
+  position: relative;
+}
+
+.agent-step::before {
+  content: "";
+  position: absolute;
+  top: 0.625rem;
+  left: -1.0625rem;
+  width: 0.625rem;
+  height: 0.625rem;
+  border: 2px solid var(--color-surface);
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+
+.agent-step-refused::before {
+  background: var(--color-danger);
+}
+
+.agent-step-message::before {
+  background: var(--color-border-strong);
+}
+
+.agent-form {
+  padding: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-raised);
+}
+
+.agent-form textarea {
+  border-color: transparent;
+}
+
+/* Workspace side cards */
+
+.workspace-side .approvals,
+.live-activity,
+.demo-controls {
+  padding: 1rem 1.125rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.workspace-side .approval-card {
+  box-shadow: none;
+}
+
+.live-activity .section-header,
+.demo-controls .section-header,
+.workspace-side .approvals .section-header {
+  margin-bottom: 0.75rem;
+}
+
+.activity-list-compact {
+  border: 0;
+  box-shadow: none;
+}
+
+.activity-list-compact .activity-entry {
+  grid-template-columns: 4.25rem 1fr;
+  padding: 0.5rem 0;
+  border-left: 0;
+  font-size: 0.875rem;
+}
+
+.activity-list-compact .activity-time {
+  font-size: 0.8125rem;
+}
+
+.demo-controls {
+  border-style: dashed;
+  background: #fbfcf9;
+}
+
+/* Catalog filters */
+
+.catalog-filters {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.125rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.filter-search {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.filter-search input,
+.filter-select select {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.filter-select {
+  flex: 0 1 12rem;
+  min-width: 0;
+}
+
+.filter-search input:focus-visible,
+.filter-select select:focus-visible,
+.filter-check input:focus-visible {
+  outline: 3px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+.filter-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.9375rem;
+  white-space: nowrap;
+}
+
+.filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.filter-group-label {
+  min-width: 5rem;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.chip {
+  padding: 0.125rem 0.625rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.chip:hover {
+  border-color: var(--color-accent);
+}
+
+.chip-on {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: #ffffff;
+}
+
+.chip-allergen.chip-on {
+  border-color: var(--color-warning);
+  background: var(--color-warning);
+}
+
+.chip:focus-visible {
+  outline: 3px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+.filter-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-top: 0.625rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.api-query {
+  min-width: 0;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-small);
+  background: var(--color-background);
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+.filter-rank {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 1 15rem;
+}
+
+.filter-inline-label {
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Ranked offers */
+
+.product-ranking {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  margin: -0.25rem 0 0.875rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--radius-small);
+  background: var(--color-background);
+}
+
+.product-card-top {
+  border-color: var(--color-accent);
+}
+
+.product-card-top .product-ranking {
+  background: var(--color-accent-soft);
+}
+
+.rank-badge {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  min-width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--color-text);
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 800;
+}
+
+.product-card-top .rank-badge {
+  background: var(--color-accent);
+}
+
+.rank-reason {
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+/* Kitchen switch */
+
+.kitchen-switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.kitchen-switch-label {
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.kitchen-option {
+  padding: 0.375rem 1rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.kitchen-option:hover {
+  border-color: var(--color-accent);
+}
+
+.kitchen-option-on {
+  border-color: var(--color-header);
+  background: var(--color-header);
+  color: var(--color-header-text);
+}
+
+.kitchen-option:focus-visible {
+  outline: 3px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+.kitchen-switch-note {
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.policy-note {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+/* Buyer's rules and the checks behind each decision */
+
+.policy-card {
+  padding: 1rem 1.125rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.policy-card .section-header {
+  margin-bottom: 0.25rem;
+}
+
+.policy-intro {
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.policy-group {
+  margin-top: 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.policy-group-blocked {
+  color: var(--color-danger);
+}
+
+.policy-group-approval {
+  color: var(--color-warning);
+}
+
+.policy-rules {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+  padding-left: 1rem;
+  list-style: disc;
+  font-size: 0.9375rem;
+}
+
+/* The buyer's signed mandate for the agent */
+
+.mandate-card h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.mandate-issuer {
+  overflow-wrap: anywhere;
+  color: var(--color-text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+}
+
+.mandate-stopped {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.mandate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.mandate-history {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.guardrail-checks {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 0.625rem;
+  font-size: 0.875rem;
+}
+
+.guardrail {
+  display: grid;
+  grid-template-columns: 1.25rem 6rem 1fr;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.guardrail-icon {
+  display: grid;
+  place-items: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 50%;
+  color: #ffffff;
+  font-size: 0.6875rem;
+  font-weight: 800;
+}
+
+.guardrail-passed .guardrail-icon {
+  background: var(--color-accent);
+}
+
+.guardrail-needs_approval .guardrail-icon {
+  background: var(--color-warning);
+}
+
+.guardrail-blocked .guardrail-icon {
+  background: var(--color-danger);
+}
+
+.guardrail-rule {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.guardrail-needs_approval .guardrail-detail {
+  font-weight: 600;
+}
+
+@media (max-width: 34rem) {
+  .guardrail {
+    grid-template-columns: 1.25rem 1fr;
+  }
+
+  .guardrail-detail {
+    grid-column: 2;
+  }
+}
+
+/* Substitutes */
+
+.substitutes-open {
+  align-self: flex-start;
+  margin-top: 0.75rem;
+}
+
+.substitutes {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-small);
+  background: var(--color-background);
+  font-size: 0.875rem;
+}
+
+.substitutes-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.substitutes-title {
+  font-weight: 700;
+}
+
+.substitute-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.substitute {
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-border-strong);
+  border-radius: var(--radius-small);
+  background: var(--color-surface);
+}
+
+.substitute-best {
+  border-left-color: var(--color-accent);
+}
+
+.substitute-better {
+  border-left-color: #4f8a76;
+}
+
+.substitute-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.tier-badge {
+  flex-shrink: 0;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background: var(--color-skeleton);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.substitute-best .tier-badge {
+  background: var(--color-accent);
+  color: #ffffff;
+}
+
+.substitute-better .tier-badge {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.substitute-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.substitute-match {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.substitute-facts,
+.substitute-notes {
+  margin-top: 0.25rem;
+  color: var(--color-text-muted);
+}
+
+.substitute-tradeoff {
+  margin-top: 0.25rem;
+}
+
+.substitutes-excluded {
+  margin-top: 0.5rem;
+}
+
+.substitutes-excluded summary {
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.substitutes-excluded ul {
+  margin-top: 0.25rem;
+  padding-left: 1rem;
+  list-style: disc;
+  color: var(--color-text-muted);
+}
+
+/* Orders */
+
+.order-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.order-card {
+  padding: 1.125rem 1.25rem;
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-accent);
+  border-radius: var(--radius-large);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.order-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.order-header h3 {
+  font-size: 1.125rem;
+}
+
+.order-total {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.order-lines {
+  margin-top: 0.75rem;
+}
+
+.order-lines li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.25rem 1rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.9375rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.order-line-quantity {
+  color: var(--color-text-muted);
+}
+
+.order-line-total {
+  font-weight: 600;
+  text-align: right;
+}
+
+@media (max-width: 34rem) {
+  .order-lines li {
+    grid-template-columns: 1fr auto;
+  }
+
+  .order-line-quantity {
+    grid-column: 1;
+  }
+
+  .order-total {
+    align-items: flex-start;
+  }
+
+  .overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.625rem;
+  }
+
+  .stat {
+    padding: 0.75rem 0.875rem;
+  }
+
+  .stat-value {
+    font-size: 1.375rem;
+  }
+
+}
+
+/* Valio Aimo's live data on product cards and in the catalog */
+
+.product-vat,
+.product-source {
+  margin-top: 0.125rem;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.product-cutoff {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.allergen-undeclared {
+  color: var(--color-warning);
+  font-weight: 600;
+}
+
+.catalog-intro {
+  margin: -0.25rem 0 0.75rem;
+  font-size: 0.9375rem;
+}
+
+.catalog-excluded {
+  margin: 0.75rem 0;
+}
+
+.catalog-excluded ul {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+  padding-left: 1rem;
+  list-style: disc;
+  font-size: 0.875rem;
+}
+
+.filter-date input {
+  min-height: 2.5rem;
+  padding: 0 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-small, 6px);
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+}
