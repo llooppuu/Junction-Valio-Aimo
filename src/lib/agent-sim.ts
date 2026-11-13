@@ -43,7 +43,7 @@ interface RunContext {
 const NUT_PATTERN = /\b(peanuts?|tree nuts?|cashews?|almonds?|hazelnuts?|walnuts?|pistachios?)\b/i;
 
 function query(text: string): string {
-  return encodeURIComponent(text.trim().toLowerCase()).replace(/%20/g, '+');
+  return encodeURIComponent(text.trim().toLowerCase()).replace(/%20/g, '+').replace(/%2C/gi, ',');
 }
 
 /** Finishes a quote: within the limit it is ordered, otherwise it waits for the buyer. */

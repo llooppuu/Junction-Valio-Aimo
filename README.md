@@ -10,7 +10,7 @@ An agent purchasing desk where professional kitchens hand food orders to AI purc
 - **Orders and activity**: placed orders and the append-only audit history of what agents and buyers did.
 - **Wholesaler view**: the wholesaler's side, with every buyer's agents, waiting quotes and refused attempts.
 
-All data is sample data in `src/data/mock.ts`. There is no backend.
+All data is sample data in `src/data/mock.ts`. There is no backend: the agent's replies are scripted in the browser from that data, changes live in memory, and a page reload brings the sample data back.
 
 ## Quick start
 

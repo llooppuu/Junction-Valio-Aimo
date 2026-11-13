@@ -252,7 +252,7 @@
   display: none;
 }
 
-@media (max-width: 1140px) {
+@media (max-width: 1240px) {
   .main-nav,
   .site-header__actions > .user-chip {
     display: none;
@@ -263,9 +263,20 @@
   }
 }
 
-@media (min-width: 1141px) {
+@media (min-width: 1241px) {
   .mobile-menu {
     display: none;
+  }
+}
+
+@media (min-width: 1241px) and (max-width: 1400px) {
+  .site-header__inner,
+  .main-nav__list {
+    gap: var(--space-4);
+  }
+
+  .site-header__actions {
+    gap: var(--space-3);
   }
 }
 

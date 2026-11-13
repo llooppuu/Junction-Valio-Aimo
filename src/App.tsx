@@ -43,10 +43,13 @@ export default function App() {
     document.documentElement.lang = lang;
   }, [lang]);
 
-  // Start each view at the top of the page.
+  // Start each view at the top of the page, with its name in the browser tab.
   useEffect(() => {
     window.scrollTo({ top: 0 });
-  }, [route]);
+    const t = getStrings(lang);
+    const viewName = route === 'wholesaler' ? t.wholesalerView : t[route];
+    document.title = `${viewName} · ${t.brand}`;
+  }, [route, lang]);
 
   return (
     <LangContext.Provider value={langValue}>
