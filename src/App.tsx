@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import Header from './components/Header.tsx';
+import Footer from './components/Footer.tsx';
 import { useHashRoute } from './lib/router.ts';
 import { getStrings, LangContext, type Lang } from './lib/i18n.ts';
 
@@ -29,7 +30,7 @@ export default function App() {
             <h1>{title}</h1>
           </div>
         </main>
-        <footer className="app-footer" aria-label="Site footer" />
+        <Footer />
       </div>
     </LangContext.Provider>
   );
