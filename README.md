@@ -41,8 +41,9 @@ public/          Static files served as-is (favicon)
 src/
   main.tsx       Entry point: mounts the app and loads global styles
   App.tsx        Page shell: header, current view and footer
-  components/    UI components: header, footer, views and building blocks
-  lib/           Helpers and types: hash router, shell strings
+  components/    Header, footer and the views
+    ui/          Shared building blocks: buttons, cards, badges, chips, form controls
+  lib/           Helpers and types: hash router, shell strings, formatting
   styles/        Design tokens, fonts, base and component CSS
 ```
 

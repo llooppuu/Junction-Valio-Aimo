@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Header from './components/Header.tsx';
 import Footer from './components/Footer.tsx';
+import PageHero from './components/ui/PageHero.tsx';
 import { useHashRoute } from './lib/router.ts';
 import { getStrings, LangContext, type Lang } from './lib/i18n.ts';
 
@@ -26,9 +27,7 @@ export default function App() {
       <div className="app">
         <Header route={route} />
         <main id="main" className="app-main" tabIndex={-1}>
-          <div className="container" style={{ paddingBlock: 'var(--space-12)' }}>
-            <h1>{title}</h1>
-          </div>
+          <PageHero title={title} lead="This view is coming next." />
         </main>
         <Footer />
       </div>
