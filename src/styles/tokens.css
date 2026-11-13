@@ -1,0 +1,103 @@
+/* Fonts (self-hosted via @fontsource) */
+@import '@fontsource/barlow-condensed/500.css';
+@import '@fontsource/barlow-condensed/600.css';
+@import '@fontsource/barlow-condensed/700.css';
+@import '@fontsource/figtree/400.css';
+@import '@fontsource/figtree/500.css';
+@import '@fontsource/figtree/600.css';
+@import '@fontsource/figtree/700.css';
+@import '@fontsource/source-serif-4/400.css';
+
+:root {
+  /* Brand */
+  --color-primary: #00566f;
+  --color-primary-dark: #003f52;
+  --color-primary-soft: #e4eff3;
+  --color-accent: #c8dd23;
+  --color-accent-dark: #b3c71a;
+
+  /* Surfaces */
+  --color-bg: #f4f5f7;
+  --color-surface: #ffffff;
+  --color-hero-soft: #ece6f1;
+  --color-surface-muted: #f8f8f8;
+
+  /* Text */
+  --color-text: #1d2b33;
+  --color-text-muted: #4f5d66;
+  --color-text-subtle: #6f7c84;
+  --color-heading: var(--color-primary);
+  --color-on-primary: #ffffff;
+  --color-on-accent: var(--color-primary);
+
+  /* Lines */
+  --color-border: #dadee2;
+  --color-border-strong: #b9c1c7;
+
+  /* Status */
+  --color-warning: #a8650f;
+  --color-warning-bar: #c98a22;
+  --color-warning-soft: #fdf2e2;
+  --color-warning-border: #e7b56a;
+  --color-danger: #c0261d;
+  --color-danger-soft: #fdecea;
+  --color-success: #2f7d5b;
+  --color-bar-track: #e6e9ec;
+  --color-bar-muted: #b6bec4;
+
+  /* Focus */
+  --focus-ring: 0 0 0 3px #ffffff, 0 0 0 5px var(--color-primary);
+
+  /* Typography */
+  --font-heading: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --font-body: 'Figtree', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', Consolas, 'Courier New', monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.5rem;
+  --text-display: clamp(2.75rem, 7vw, 4.5rem);
+
+  /* Spacing */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* Layout */
+  --container-max: 1232px;
+  --gutter: var(--space-4);
+  --header-height: 84px;
+
+  /* Radii */
+  --radius-none: 0;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-pill: 999px;
+
+  /* Borders and shadows */
+  --card-top-border: 4px;
+  --shadow-sm: 0 1px 2px rgb(16 40 52 / 0.06);
+  --shadow-md: 0 2px 8px rgb(16 40 52 / 0.08);
+  --shadow-lg: 0 12px 40px rgb(16 40 52 / 0.18);
+
+  /* Motion */
+  --transition-fast: 120ms ease;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --gutter: var(--space-6);
+  }
+}
