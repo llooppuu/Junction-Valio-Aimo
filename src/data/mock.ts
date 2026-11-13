@@ -16,6 +16,8 @@ import type {
   Quote,
   StandingOrder,
   StockAlert,
+  SubstituteCriterion,
+  SubstituteSet,
   SupplierReliability,
 } from '../lib/types.ts';
 
@@ -934,3 +936,296 @@ export const products: Product[] = [
     signedUntil: '02:34',
   },
 ];
+
+// ---------------------------------------------------------------------------
+// Substitutes the server ranks for products that cannot be delivered
+// ---------------------------------------------------------------------------
+
+/** Weights the server uses to score a substitute. */
+function criteria(
+  similarity: [number, string],
+  price: [number, string],
+  preference: [number, string],
+  availability: [number, string],
+): SubstituteCriterion[] {
+  return [
+    { name: 'Similarity', weight: 30, score: similarity[0], note: similarity[1] },
+    { name: 'Price', weight: 25, score: price[0], note: price[1] },
+    { name: 'Preference', weight: 20, score: preference[0], note: preference[1] },
+    { name: 'Availability', weight: 25, score: availability[0], note: availability[1] },
+  ];
+}
+
+const NO_LABELS_SAME = 'same supplier as requested, the requested product had no labels to keep';
+const NO_LABELS_OTHER = 'a different supplier, the requested product had no labels to keep';
+
+export const substituteSets: SubstituteSet[] = [
+  {
+    productId: 'p-hp-sauce',
+    reason: 'Valio Aimo cannot deliver it on any date; out of stock',
+    candidates: [
+      {
+        rank: 'best',
+        score: 93,
+        name: 'Heinz Baked beans with tomato sauce 415g',
+        supplier: 'HAUGEN-GRUPPEN OY',
+        price: 3.88,
+        priceNote: '€0.46 more than the requested product (€3.88 in total).',
+        order: '2 packages (0.41 kg)',
+        delivery: 'Mon, 16 Nov 2026',
+        deliveredAsOrdered: '100% delivered as ordered',
+        criteria: criteria(
+          [75, 'same category, similar product: sauce'],
+          [100, '29% less per kg than the requested product'],
+          [100, NO_LABELS_SAME],
+          [100, 'stock covers the order 67 times over; 100% delivered as ordered'],
+        ),
+      },
+      {
+        rank: 'better',
+        score: 91,
+        name: 'Santa Maria 1950ML Sweet Chili Sauce',
+        supplier: 'SANTA MARIA AB',
+        price: 8.87,
+        priceNote: '€5.45 more than the requested product (€8.87 in total).',
+        order: '1 package (2.38 kg)',
+        delivery: 'Mon, 16 Nov 2026',
+        deliveredAsOrdered: '100% delivered as ordered',
+        criteria: criteria(
+          [83, 'same category, similar product: sauce'],
+          [100, '72% less per kg than the requested product'],
+          [80, NO_LABELS_OTHER],
+          [100, 'stock covers the order 204 times over; 100% delivered as ordered'],
+        ),
+      },
+      {
+        rank: 'good',
+        score: 88,
+        name: 'Santa Maria 3700G Smooth Salsa Taco Sauce Hot',
+        supplier: 'SANTA MARIA AB',
+        price: 18.7,
+        priceNote: '€15.28 more than the requested product (€18.70 in total).',
+        order: '1 package (3.7 kg)',
+        delivery: 'Mon, 16 Nov 2026',
+        deliveredAsOrdered: '100% delivered as ordered',
+        criteria: criteria(
+          [72, 'same category, similar product: sauce'],
+          [100, '62% less per kg than the requested product'],
+          [80, NO_LABELS_OTHER],
+          [100, 'stock covers the order 32 times over; 100% delivered as ordered'],
+        ),
+      },
+    ],
+    unsuitable: [
+      { name: 'Thai Satay Sauce 1 kg', reason: "Contains peanuts: blocked by the kitchen's rules and cannot be approved" },
+      { name: 'Pesto alla Genovese 950 g', reason: "Contains tree nuts: blocked by the kitchen's rules and cannot be approved" },
+      { name: 'Heinz Tomato Ketchup 1 kg', reason: 'Contains celery; the requested product is free from it' },
+      { name: "Colman's English Mustard 170 g", reason: 'Contains mustard; the requested product is free from it' },
+      { name: 'Kikkoman Soy Sauce 1 l', reason: 'Contains soy; the requested product is free from it' },
+      { name: 'Lea & Perrins Worcestershire Sauce 568 ml', reason: 'Contains fish; the requested product is free from it' },
+      { name: "Hellmann's Real Mayonnaise 5 l", reason: 'Contains eggs and mustard; the requested product is free from them' },
+      { name: 'Bearnaise sauce base 1 l', reason: 'Contains milk and eggs; the requested product is milk-free' },
+      { name: 'Oyster sauce 2.27 kg', reason: 'Contains molluscs; the requested product is free from them' },
+      { name: 'Tahini sesame paste 1 kg', reason: 'Contains sesame; the requested product is free from it' },
+      { name: 'Balsamic glaze 500 ml', reason: 'Contains sulphites; the requested product is free from them' },
+      { name: 'Daddies Brown Sauce 400 g', reason: 'Valio Aimo cannot deliver it on any date' },
+      { name: 'Heinz Brown Sauce 400 ml', reason: 'Not deliverable by Mon, 16 Nov 2026; the first delivery is Thu, 19 Nov' },
+      { name: 'Branston Pickle 520 g', reason: 'Out of stock' },
+      { name: 'Sweet chili sauce 5 l', reason: 'Stock covers only half of the order' },
+      { name: 'BBQ sauce Smokey 2.2 kg', reason: 'Similarity too low (31): a barbecue sauce, not a table sauce' },
+      { name: 'Sriracha Hot Chili Sauce 740 ml', reason: 'Similarity too low (28): a hot sauce, not a brown sauce' },
+      { name: 'Lupin flour 1 kg', reason: 'Different category: flour; also contains lupin' },
+    ],
+  },
+  {
+    productId: 'p-satsuma',
+    reason: 'Valio Aimo cannot deliver it on any date',
+    candidates: [
+      {
+        rank: 'best',
+        score: 92,
+        name: 'CLEMENTINE ES',
+        supplier: 'SCAN - IBERICA OY',
+        price: 1.62,
+        priceNote: '€0.15 more than the requested product (€1.62 in total).',
+        order: '1 kg (1 kg)',
+        delivery: 'Mon, 16 Nov 2026',
+        deliveredAsOrdered: '99% delivered as ordered',
+        criteria: criteria(
+          [90, 'same category, similar product: easy-peel citrus'],
+          [86, '10% more per kg than the requested product'],
+          [100, NO_LABELS_SAME],
+          [96, 'stock covers the order 120 times over; 99% delivered as ordered'],
+        ),
+      },
+      {
+        rank: 'better',
+        score: 87,
+        name: 'MANDARIN ES',
+        supplier: 'STAAY FOOD GROOP B.V.',
+        price: 1.89,
+        priceNote: '€0.42 more than the requested product (€1.89 in total).',
+        order: '1 kg (1 kg)',
+        delivery: 'Mon, 16 Nov 2026',
+        deliveredAsOrdered: '98% delivered as ordered',
+        criteria: criteria(
+          [92, 'same category, similar product: easy-peel citrus'],
+          [71, '29% more per kg than the requested product'],
+          [80, NO_LABELS_OTHER],
+          [100, 'stock covers the order 88 times over; 98% delivered as ordered'],
+        ),
+      },
+      {
+        rank: 'good',
+        score: 81,
+        name: 'ORANGE NAVEL ES',
+        supplier: 'HARVA INTERNATIONAL B.V.',
+        price: 1.39,
+        priceNote: '€0.08 less than the requested product (€1.39 in total).',
+        order: '1 kg (1 kg)',
+        delivery: 'Mon, 16 Nov 2026',
+        deliveredAsOrdered: '99% delivered as ordered',
+        criteria: criteria(
+          [64, 'same category, citrus but not easy-peel'],
+          [100, '5% less per kg than the requested product'],
+          [80, NO_LABELS_OTHER],
+          [96, 'stock covers the order 210 times over; 99% delivered as ordered'],
+        ),
+      },
+    ],
+    unsuitable: [
+      { name: 'Mandarin segments in syrup 312 g', reason: 'Different product: canned in syrup' },
+      { name: 'Orange juice 1 l', reason: 'Different category: juice' },
+      { name: 'CLEMENTINE MA', reason: 'Not deliverable by Mon, 16 Nov 2026' },
+      { name: 'KUMQUAT', reason: 'Out of stock' },
+    ],
+  },
+  {
+    productId: 'p-beetroot',
+    reason: 'none available',
+    candidates: [
+      {
+        rank: 'best',
+        score: 95,
+        name: 'RED BEETROOT WASHED FINLAND',
+        supplier: 'FRESH SERVANT OY AB',
+        price: 1.29,
+        priceNote: '€0.08 less than the requested product (€1.29 in total).',
+        order: '1 kg (1 kg)',
+        delivery: 'Mon, 16 Nov 2026',
+        deliveredAsOrdered: '94% delivered as ordered',
+        criteria: criteria(
+          [98, 'same category, same vegetable'],
+          [100, '6% less per kg than the requested product'],
+          [90, 'a different supplier, and Finnish origin'],
+          [88, 'stock covers the order 300 times over; 94% delivered as ordered'],
+        ),
+      },
+      {
+        rank: 'better',
+        score: 84,
+        name: 'Beetroot cooked vacuum packed 500 g',
+        supplier: 'FRESH SERVANT OY AB',
+        price: 2.95,
+        priceNote: '€1.58 more than the requested product (€5.90 in total).',
+        order: '2 packages (1 kg)',
+        delivery: 'Mon, 16 Nov 2026',
+        deliveredAsOrdered: '96% delivered as ordered',
+        criteria: criteria(
+          [78, 'same vegetable, already cooked'],
+          [60, 'more per kg than the requested product'],
+          [90, 'a different supplier, and Finnish origin'],
+          [100, 'stock covers the order 45 times over; 96% delivered as ordered'],
+        ),
+      },
+      {
+        rank: 'good',
+        score: 78,
+        name: 'CHIOGGIA BEETROOT NL',
+        supplier: 'STAAY FOOD GROOP B.V.',
+        price: 2.45,
+        priceNote: '€1.08 more than the requested product (€2.45 in total).',
+        order: '1 kg (1 kg)',
+        delivery: 'Mon, 16 Nov 2026',
+        deliveredAsOrdered: '97% delivered as ordered',
+        criteria: criteria(
+          [85, 'same category, a striped beetroot variety'],
+          [58, '79% more per kg than the requested product'],
+          [100, NO_LABELS_SAME],
+          [70, 'stock covers the order 6 times over; 97% delivered as ordered'],
+        ),
+      },
+    ],
+    unsuitable: [
+      { name: 'Pickled beetroot slices 1.8 kg', reason: 'Contains sulphites; the requested product has none declared' },
+      { name: 'Beetroot juice 1 l', reason: 'Different category: juice' },
+      { name: 'GOLDEN BEETROOT NL', reason: 'Out of stock' },
+    ],
+  },
+  {
+    productId: 'p-octopus-ink',
+    reason: 'none available',
+    candidates: [
+      {
+        rank: 'best',
+        score: 90,
+        name: 'Squid ink 500 g',
+        supplier: 'JOHAN I HALLEN & BERGFALK OY',
+        price: 24.9,
+        priceNote: '€15.99 more than the requested product (€24.90 in total).',
+        order: '1 package (0.5 kg)',
+        delivery: 'Mon, 16 Nov 2026',
+        deliveredAsOrdered: '98% delivered as ordered',
+        criteria: criteria(
+          [94, 'same category, similar product: cephalopod ink'],
+          [100, '50% less per kg than the requested product'],
+          [100, NO_LABELS_SAME],
+          [64, 'stock covers the order 3 times over; 98% delivered as ordered'],
+        ),
+      },
+      {
+        rank: 'better',
+        score: 86,
+        name: 'Cuttlefish ink 4 g x 10 sachets',
+        supplier: 'KESPRO KALA OY',
+        price: 12.4,
+        priceNote: '€3.49 more than the requested product (€12.40 in total).',
+        order: '2 packages (0.08 kg)',
+        delivery: 'Mon, 16 Nov 2026',
+        deliveredAsOrdered: '97% delivered as ordered',
+        criteria: criteria(
+          [92, 'same category, similar product: cephalopod ink'],
+          [72, 'more per kg than the requested product'],
+          [80, NO_LABELS_OTHER],
+          [100, 'stock covers the order 40 times over; 97% delivered as ordered'],
+        ),
+      },
+      {
+        rank: 'good',
+        score: 82,
+        name: 'Squid ink 90 g jar',
+        supplier: 'KESPRO KALA OY',
+        price: 7.95,
+        priceNote: '€0.96 less than the requested product (€7.95 in total).',
+        order: '1 package (0.09 kg)',
+        delivery: 'Tue, 17 Nov 2026',
+        deliveredAsOrdered: '95% delivered as ordered',
+        criteria: criteria(
+          [96, 'same category, same size'],
+          [100, '11% less per kg than the requested product'],
+          [80, NO_LABELS_OTHER],
+          [44, 'delivered a day later; 95% delivered as ordered'],
+        ),
+      },
+    ],
+    unsuitable: [
+      { name: 'Squid rings frozen 1 kg', reason: 'Different product: squid, not ink' },
+      { name: 'Activated charcoal powder 100 g', reason: 'Different category: baking' },
+      { name: 'Octopus ink 500 g', reason: 'Valio Aimo cannot deliver it on any date' },
+    ],
+  },
+];
+
+export function getSubstitutes(productId: string): SubstituteSet | undefined {
+  return substituteSets.find((set) => set.productId === productId);
+}

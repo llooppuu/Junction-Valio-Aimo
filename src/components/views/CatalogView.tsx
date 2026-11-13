@@ -5,7 +5,8 @@ import { ToggleChip } from '../ui/Chip.tsx';
 import { EmptyState } from '../ui/Card.tsx';
 import Button from '../ui/Button.tsx';
 import ProductCard from '../catalog/ProductCard.tsx';
-import { CATALOG_SIZE, WHOLESALER_NAME, allergens, labels, products } from '../../data/mock.ts';
+import SubstitutesDialog from '../catalog/SubstitutesDialog.tsx';
+import { CATALOG_SIZE, WHOLESALER_NAME, allergens, getSubstitutes, labels, products } from '../../data/mock.ts';
 import {
   EMPTY_FILTERS,
   RANK_OPTIONS,
@@ -15,10 +16,12 @@ import {
   type CatalogFilters,
   type RankBy,
 } from '../../lib/catalog.ts';
+import type { Product } from '../../lib/types.ts';
 import '../../styles/catalog.css';
 
 export default function CatalogView() {
   const [filters, setFilters] = useState<CatalogFilters>(EMPTY_FILTERS);
+  const [substitutesFor, setSubstitutesFor] = useState<Product | null>(null);
   const dateId = useId();
 
   const categories = useMemo(
@@ -146,12 +149,21 @@ export default function CatalogView() {
           <ul className="product-grid" role="list">
             {results.map((product) => (
               <li key={product.id}>
-                <ProductCard product={product} />
+                <ProductCard
+                  product={product}
+                  onShowSubstitutes={getSubstitutes(product.id) ? setSubstitutesFor : undefined}
+                />
               </li>
             ))}
           </ul>
         )}
       </div>
+
+      <SubstitutesDialog
+        product={substitutesFor}
+        set={substitutesFor ? getSubstitutes(substitutesFor.id) : undefined}
+        onClose={() => setSubstitutesFor(null)}
+      />
     </>
   );
 }

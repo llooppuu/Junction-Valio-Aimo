@@ -45,7 +45,7 @@ src/
     ui/          Shared building blocks: buttons, cards, badges, chips, form controls
     views/       One component per screen (dashboard, workspace, catalog, ...)
     workspace/   Agent workspace parts: agent panel, alerts, standing order, side panels
-    catalog/     Catalog parts: product card
+    catalog/     Catalog parts: product card, substitutes dialog
   data/          Sample data (mock.ts) that every view reads
   lib/           Helpers and types: hash router, in-memory demo state, scripted agent, formatting
   styles/        Design tokens, fonts, base and component CSS
