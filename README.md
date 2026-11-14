@@ -13,7 +13,7 @@ It runs on **Valio Aimo's challenge material**: the 17,546-product data file, de
 - **Exceptions.** Order cut-offs, sales blocks, products Valio Aimo cannot deliver, partial stock, and supplier-warehouse stock that cannot be confirmed are all handled and explained. Substitutes follow recipe logic: chopped tomatoes can replace cherry tomatoes in a sauce but not in a salad, and salmon can be topped up with salmon, never herring.
 - **Traceability.** Every step, refusal, and decision is in an append-only audit history in plain language, for the kitchen and for Valio Aimo.
 
-An AI agent on GPT-5.5 runs the whole flow from a request in plain language, using only the public API with its own credentials. It gets no special treatment.
+An AI agent on GPT-5.5 runs the whole flow from a request in plain language, using only the public API with its own credentials. It gets no special treatment. The head chef can type the request or say it: the microphone button beside Send transcribes speech in English or Finnish with Gemini Live, and the words land in the request box as they are spoken. Ending with “thank you” (or “kiitos”) sends the request at once; pressing Stop leaves it to check first.
 
 MCP clients can use the interface too: `npm run mcp` starts a local MCP process, and a running app answers MCP at `POST /api/mcp`. Each tool call is forwarded to the REST API with the agent's token, so the same checks apply. See [docs/mcp.md](docs/mcp.md).
 
@@ -28,7 +28,7 @@ npm run data                # builds backend/data/catalog.json from the organize
 npm run dev
 ```
 
-`npm run data` downloads the organizers' product, reliability, and carbon files with `VALIO_API_KEY` and keeps only the built catalog, which is not in git.
+`npm run data` downloads the organizers' product, reliability, and carbon files with `VALIO_API_KEY` and keeps only the built catalog, which is not in git. Run `npm run embeddings` after it to switch on search by meaning in the catalog; without it, search matches words.
 
 | App | URL |
 | --- | --- |
@@ -44,7 +44,9 @@ In Windows PowerShell 5.1, use `curl.exe` instead of `curl`.
 | --- | --- |
 | `npm run dev` | Starts the backend and frontend with reloading |
 | `npm run data` | Builds the catalog from Valio Aimo's product, reliability, and carbon files |
+| `npm run embeddings` | Builds the index for search by meaning (needs `OPENAI_API_KEY` and the catalog; about a minute) |
 | `npm run mcp` | Starts the MCP server over stdio for a local MCP client, using the running API |
+| `npm run smoke -- <url>` | Checks a running app before a demo: health, contract, live Valio Aimo offers, signatures, MCP, and which optional features are on. Read-only |
 | `npm test` | Runs the backend tests on recorded Valio Aimo answers, without calling the APIs |
 | `npm run test:adversarial` | Runs only the attacks by adversarial agents |
 | `npm run record-fixture --workspace backend` | Records a fresh test fixture from the live APIs |
@@ -59,6 +61,8 @@ In Windows PowerShell 5.1, use `curl.exe` instead of `curl`.
 | `VALIO_API_URL` | The APIs' address, `https://junction26.valioaimo.fi` by default |
 | `OPENAI_API_KEY` | Turns on the AI agent. The key stays on the server |
 | `OPENAI_MODEL`, `OPENAI_REASONING_EFFORT` | `gpt-5.5` and `low` by default |
+| `GEMINI_API_KEY` | Turns on voice input in the agent workspace. The key stays on the server; the browser gets a single-use token per request |
+| `GEMINI_LIVE_MODEL` | The Gemini Live model that transcribes speech, `gemini-3.5-transcribe-live` by default. A native-audio Live model such as `gemini-2.5-flash-native-audio-latest` also works |
 | `AGENT_TOKEN`, `SCHOOL_AGENT_TOKEN`, `BUYER_TOKEN`, `WHOLESALER_TOKEN` | Demo tokens. The AI agents send their own; the Vite proxy adds the buyer's and the wholesaler's |
 | `BACKEND_PORT` | The backend's port, 3001 by default |
 | `PORT`, `FRONTEND_DIST` | Production hosting: the port the platform gives, and the built frontend the backend then serves itself |
@@ -104,6 +108,6 @@ package.json     npm workspaces and the root commands
 
 ## Documentation
 
-[docs/](docs/README.md) explains the [architecture](docs/architecture.md), the [API](docs/api.md), [MCP clients](docs/mcp.md), [trust and controls](docs/trust-and-controls.md), the [Valio Aimo integration](docs/valio-integration.md), [demo scenarios](docs/scenarios.md), [standards and the path to production](docs/standards-and-production.md), and [deployment](docs/deployment.md). The full API contract is at `/api/openapi.json`.
+[docs/](docs/README.md) explains the [architecture](docs/architecture.md), the [API](docs/api.md), [MCP clients](docs/mcp.md), [trust and controls](docs/trust-and-controls.md), the [Valio Aimo integration](docs/valio-integration.md), [demo scenarios](docs/scenarios.md), the [pitch and live demo](docs/pitch.md), [standards and the path to production](docs/standards-and-production.md), and [deployment](docs/deployment.md). The full API contract is at `/api/openapi.json`.
 
 The product data is the organizers' and may be used only within Junction 2026.

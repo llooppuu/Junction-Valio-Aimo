@@ -46,6 +46,9 @@ export function OrdersView({ orders, quotes, onShowQuote }: OrdersViewProps) {
                 <div className="order-total">
                   <span className="approval-total-amount">{formatEuroCents(order.totalEurCents)}</span>
                   <span>{t("orders.delivery", { date: formatDeliveryDate(order.deliveryDate) })}</span>
+                  <a className="button-link order-export" href={`/api/orders/${encodeURIComponent(order.id)}/ubl`} download={`${order.id}.xml`} title={t("orders.exportHint")}>
+                    {t("orders.export")}
+                  </a>
                 </div>
               </header>
               <ul className="order-lines">

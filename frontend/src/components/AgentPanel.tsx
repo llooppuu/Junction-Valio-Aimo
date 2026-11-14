@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  cancelAgentRun,
   fetchAgentRun,
   fetchAgentRuns,
   fetchAgentStatus,
@@ -14,6 +15,7 @@ import { personName } from "../lib/names";
 import { MenuPlanTable } from "./MenuPlanTable";
 import { localized } from "../lib/reasons";
 import { RequestComposer } from "./RequestComposer";
+import { VoiceInput } from "./VoiceInput";
 
 const POLL_INTERVAL_MS = 700;
 
@@ -191,6 +193,19 @@ export function AgentPanel({ launch = null, onLaunched, agentId, agentName, onAc
     }
   }
 
+  /** Stops the agent. If the run finished in the meantime, shows how it ended instead. */
+  async function cancel(id: string) {
+    try {
+      const run = await cancelAgentRun(id);
+      setRuns((current) => current.map((candidate) => (candidate.id === run.id ? run : candidate)));
+      onActivityRef.current();
+    } catch {
+      const run = await fetchAgentRun(id).catch(() => undefined);
+      if (run) setRuns((current) => current.map((candidate) => (candidate.id === run.id ? run : candidate)));
+    }
+    inputRef.current?.focus();
+  }
+
   // Keep a handover pending until the restored conversation is ready and idle.
   useEffect(() => {
     if (launch && agent.status === "on" && !busy && launchedRef.current !== launch.at) {
@@ -308,6 +323,18 @@ export function AgentPanel({ launch = null, onLaunched, agentId, agentName, onAc
           placeholder={runs.length === 0 ? t("agent.inputPlaceholder") : t("agent.replyPlaceholder")}
           disabled={agent.status !== "on"}
           busy={busy}
+          onCancel={activeRunId ? () => void cancel(activeRunId) : undefined}
+          inputActions={
+            agent.status === "on" && (
+              <VoiceInput
+                draft={message}
+                onDraft={setMessage}
+                onDone={() => inputRef.current?.focus()}
+                onSend={(text) => void send(text)}
+                disabled={busy}
+              />
+            )
+          }
         />
       </div>
     </section>
@@ -384,6 +411,8 @@ function RunView({ run, latest, onReviewApprovals }: { run: AgentRun; latest: bo
             )}
           </>
         )}
+
+        {run.status === "cancelled" && <p className="section-muted agent-cancelled">{t("agent.cancelled")}</p>}
 
         {run.status === "failed" && (
           <p role="alert" className="agent-error">

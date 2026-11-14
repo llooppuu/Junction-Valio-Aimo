@@ -2,7 +2,7 @@ import { Router } from "express";
 import { parseOr400, sendError } from "../http.js";
 import { productQuerySchema } from "../schemas/product.js";
 import { matchesQuery, unmetRequirements, withAvailability } from "../services/catalog.js";
-import { DEFAULT_RESULTS, liveProducts, searchLive } from "../services/market.js";
+import { DEFAULT_RESULTS, liveProducts, searchLiveWithMode } from "../services/market.js";
 import type { Store } from "../store.js";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -17,7 +17,7 @@ export function productsRouter(store: Store) {
   router.get("/", async (req, res) => {
     const query = parseOr400(productQuerySchema, req.query, res);
     if (!query) return;
-    const live = await searchLive(store, query);
+    const { products: live, mode, fallbackReason } = await searchLiveWithMode(store, query);
     const matching = live.filter((product) => matchesQuery(product, query)).slice(0, query.limit ?? DEFAULT_RESULTS);
     const requirements = {
       ...(query.deliverBy ? { deliverBy: query.deliverBy } : {}),
@@ -37,6 +37,8 @@ export function productsRouter(store: Store) {
         system: "Valio Aimo product data, with the price and availability APIs",
         answeredAt: live[0]?.liveAt ?? null,
         productsQueried: live.length,
+        search: mode,
+        ...(fallbackReason ? { searchFallback: fallbackReason } : {}),
       },
     });
   });

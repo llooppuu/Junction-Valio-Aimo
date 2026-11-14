@@ -45,6 +45,14 @@ const envSchema = z.object({
     .optional()
     .transform((value) => value || undefined),
   VALIO_API_URL: z.url().default("https://junction26.valioaimo.fi"),
+  // Voice input in the agent workspace, through Gemini Live. Without a key the microphone button is
+  // hidden and typing works as before. The key stays on the server; browsers get single-use tokens.
+  GEMINI_API_KEY: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => value || undefined),
+  GEMINI_LIVE_MODEL: z.string().min(1).default("gemini-3.5-transcribe-live"),
 });
 
 export const config = envSchema.parse(process.env);

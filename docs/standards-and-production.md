@@ -14,6 +14,7 @@ The brief asks for an interface defined on open, verifiable standards rather tha
 | The buyer's identity | `did:key` (W3C Credentials Community Group) | The issuer's public key is inside its identifier, so a mandate verifies from the token alone. |
 | Allergens | EU Regulation 1169/2011 and GS1 allergen type codes | The 14 EU allergens, with the GS1 codes Valio Aimo's product data uses, in every product and its signed offer. |
 | Product identity | GTIN (GS1) | Each product carries its GTIN where Valio Aimo's data has one. |
+| Order documents | PEPPOL BIS Order 3.0 (UBL 2.1), GTIN scheme 0160, UN/ECE Recommendation 20 units | `GET /api/orders/{id}/ubl`: each order as a standard document, since there is no order API to send it to. |
 | Rate limiting | HTTP 429 and `Retry-After` (RFC 6585, RFC 9110) | Honoured towards Valio Aimo, and passed on to callers as `503` with `Retry-After`. |
 | Dates, money, countries | ISO 8601, ISO 4217 (EUR), ISO 3166-1 | Delivery dates and cut-offs, prices in euro cents, countries of origin. |
 | Agent interoperability | Model Context Protocol (MCP) | The agent's 16 tools, its policy, and a purchasing guide, over stdio and Streamable HTTP at `/api/mcp`. See [MCP clients](mcp.md). |
@@ -40,7 +41,7 @@ The agent's 16 tools are thin wrappers over the public endpoints, described with
 - **Signing keys are created at start-up.** Offers signed before a restart no longer verify after it.
 - **Tokens are demo tokens** set in configuration, and the browser app acts as the buyer.
 - **One buyer organization with two kitchens**, and one wholesaler.
-- **No order is sent to Valio Aimo**, as its mock environment has no order API.
+- **No order is sent to Valio Aimo**, as its mock environment has no order API; each order can be downloaded as a PEPPOL BIS Order document instead.
 
 ## Path to production
 
@@ -48,7 +49,7 @@ The agent's 16 tools are thin wrappers over the public endpoints, described with
 2. **Real identities for agents and people.** Agents authenticate with OAuth 2.0 client credentials and sender-constrained tokens (DPoP or mutual TLS); people sign in with the buyer organization's identity provider (OpenID Connect).
 3. **Key management.** Keep the signing keys in a key management service, rotate them, and keep old public keys in the JWK Set until their offers expire.
 4. **Mandate revocation others can check.** Publish revocations in a W3C Bitstring Status List, so a supplier or another agent can see that a mandate was revoked without asking this server.
-5. **An order API, and standard order documents.** When Valio Aimo opens order intake, an approved quote is sent there directly. Until then, and for other wholesalers, an order can be exported as a PEPPOL BIS Order (UBL 2.1).
+5. **An order API.** When Valio Aimo opens order intake, an approved quote is sent there directly. The PEPPOL BIS Order document the app already produces can then travel over the PEPPOL network, which also reaches other wholesalers.
 6. **Discovery for any agent.** The MCP server exists; next, publish an agent card at a well-known URI, so a buyer's existing assistant can find and use Valio Aimo without being told where.
 7. **Trust from outcomes, not only approvals.** Feed delivery outcomes, credit notes, and complaints into earned autonomy, so a category is earned on what actually arrived, and lost when it did not.
 8. **Approvals where people are.** Notify the buyer on mobile or in the tools the kitchen already uses, with one-tap approve or reject and the reason attached.
@@ -64,5 +65,6 @@ The agent's 16 tools are thin wrappers over the public endpoints, described with
 | Node's built-in crypto for Ed25519 | No third-party signing library to trust. |
 | React 19 and Vite | A fast buyer interface; the dev proxy keeps tokens out of the browser bundle. |
 | OpenAI GPT-5.5 with tool use | The agent reasons over a plain-language request and calls the public API; any tool-using model can replace it. |
+| Gemini Live with ephemeral tokens | Speech to text for the buyer's requests, in English and Finnish. The browser never holds the API key, each token opens one session within a minute, and the session's settings are fixed in the token. Speech goes to Google only while the buyer holds the microphone on. |
 | Node's test runner on recorded answers | Fast tests that never call the live APIs, with scenarios and adversarial attacks as executable proof. |
 | One Docker container | Runs on any host; see [Deployment](deployment.md). |

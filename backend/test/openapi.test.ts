@@ -46,7 +46,7 @@ describe("GET /api/openapi.json", () => {
 
     const search = doc.paths["/api/products"].get;
     const names = search.parameters.map((parameter: { name: string }) => parameter.name);
-    assert.deepEqual(names, ["q", "category", "attributes", "labels", "excludeAllergens", "deliverBy", "minQuantity", "unit", "limit"]);
+    assert.deepEqual(names, ["q", "category", "attributes", "labels", "excludeAllergens", "deliverBy", "minQuantity", "unit", "limit", "search"]);
     assert.equal(search.security, undefined);
 
     const decision = doc.paths["/api/quotes/{id}/decision"].post;

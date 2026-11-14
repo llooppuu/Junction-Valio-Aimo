@@ -47,6 +47,7 @@ flowchart LR
 | Kitchen data | `backend/src/data/` | The kitchens' recipes, inventory, planned orders, track records, and the wholesaler's launches. Ours, not Valio Aimo's. |
 | AI agent | `backend/src/agent/` | Runs a request through the public API with the agent's own token, using 16 tools. It gets no shortcut past any rule. |
 | MCP layer | `backend/src/mcp/`, `routes/mcp.ts` | Lists the agent's 16 tools to MCP clients over stdio or HTTP and forwards each call to the REST API with that client's token. |
+| Voice input | `services/voice.ts`, `routes/voice.ts`, `frontend/src/lib/voice.ts` | Issues the browser a single-use Gemini Live token. The browser streams the microphone to Gemini and puts the transcript in the request box. The buyer sends it with Send, or by ending the request with “thank you” or “kiitos”. |
 | Audit | `backend/src/services/audit.ts` | Appends a frozen entry for every step, in English and Finnish. No route edits or deletes one. |
 
 ## Following one request

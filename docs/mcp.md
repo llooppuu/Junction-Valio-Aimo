@@ -49,6 +49,14 @@ With Claude Code the same thing is one command:
 claude mcp add trusted-trade-agents -e TTA_AGENT_TOKEN=demo-agent-token -- npm run --silent mcp --prefix /path/to/Junction-Valio-Aimo
 ```
 
+### Pointing it at the hosted app
+
+The local process can work against a deployed app instead of your own: set `TTA_API_URL` to the app's address with `/api` at the end, and `TTA_AGENT_TOKEN` to the agent token the deployment uses. Everything the client does then appears in the hosted app's activity history and approval queue, which is the easiest way to show an outside agent and the head chef side by side.
+
+```json
+"env": { "TTA_API_URL": "https://your-app.example.com/api", "TTA_AGENT_TOKEN": "demo-agent-token" }
+```
+
 ## Connecting over the network
 
 A running app also answers MCP at `POST /api/mcp`, using Streamable HTTP without sessions. The agent's token goes in the `Authorization: Bearer` header. Agent tokens are the only ones accepted: a request with no token or an unknown one is answered `401`, and a buyer's or wholesaler's token `403`. In the Docker image this endpoint shares the app's port, so a hosted demo can be reached by remote clients.

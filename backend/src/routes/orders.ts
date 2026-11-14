@@ -6,6 +6,8 @@ import { recordAudit } from "../services/audit.js";
 import { getOrder, placeOrder } from "../services/orders.js";
 import { liveProducts } from "../services/market.js";
 import type { Store } from "../store.js";
+import { orderToUbl } from "../services/ubl.js";
+import { ApiError } from "../http.js";
 
 export const placeOrderSchema = z.strictObject({
   quoteId: z.string().min(1),
@@ -43,6 +45,16 @@ export function ordersRouter(store: Store) {
 
   router.get("/:id", anyRole, (req, res) => {
     res.json({ order: getOrder(store, String(req.params.id)) });
+  });
+
+  // The order as a PEPPOL BIS Order 3.0 document, to forward or import. An agent may export only its own kitchen's orders.
+  router.get("/:id/ubl", anyRole, (req, res) => {
+    const order = getOrder(store, String(req.params.id));
+    const principal = currentPrincipal(res);
+    if (principal.role === "agent" && store.quotes.get(order.quoteId)?.createdBy.id !== principal.id) {
+      throw new ApiError(404, `Order ${order.id} not found.`);
+    }
+    res.type("application/xml").set("Content-Disposition", `attachment; filename="${order.id}.xml"`).send(orderToUbl(store, order));
   });
 
   return router;

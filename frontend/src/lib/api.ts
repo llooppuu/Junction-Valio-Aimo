@@ -663,7 +663,7 @@ export async function fetchOfferResult(signal: AbortSignal | undefined, query: Q
 export interface ProductSearchResult {
   products: Product[];
   excluded: { productId: string; name: string; reasons: string[] }[];
-  source: { system: string; answeredAt: string | null; productsQueried: number };
+  source: { system: string; answeredAt: string | null; productsQueried: number; search?: "keyword" | "semantic"; searchFallback?: string };
 }
 
 /** One product with Valio Aimo's live price and availability. */
@@ -746,7 +746,7 @@ export interface AgentRun {
   model: string;
   agent: { id: string; name: string };
   request: string;
-  status: "running" | "completed" | "failed";
+  status: "running" | "completed" | "failed" | "cancelled";
   startedAt: string;
   finishedAt?: string;
   steps: AgentStep[];
@@ -758,6 +758,38 @@ export interface AgentRun {
 
 export async function fetchAgentStatus(signal?: AbortSignal): Promise<AgentStatus> {
   return request<AgentStatus>("/api/agent", { signal: signal ?? null });
+}
+
+export interface VoiceStatus {
+  available: boolean;
+  model: string | null;
+}
+
+/** A single-use Gemini Live session for dictating one request. */
+export interface VoiceSession {
+  token: string;
+  model: string;
+  apiVersion: string;
+  languageCode: string;
+  /** What the model replies with, which the session must ask for. */
+  responseModalities: ("TEXT" | "AUDIO")[];
+  connectBefore: string;
+  expiresAt: string;
+}
+
+export async function fetchVoiceStatus(signal?: AbortSignal): Promise<VoiceStatus> {
+  return request<VoiceStatus>("/api/voice", { signal: signal ?? null });
+}
+
+export async function createVoiceSession(language: "en" | "fi"): Promise<VoiceSession> {
+  const body = await request<{ session: VoiceSession }>("/api/voice/token", { method: "POST", body: JSON.stringify({ language }) });
+  return body.session;
+}
+
+/** Stops a run in progress. Anything the agent already did, such as a quote, is kept. */
+export async function cancelAgentRun(id: string): Promise<AgentRun> {
+  const body = await request<{ run: AgentRun }>(`/api/agent/runs/${encodeURIComponent(id)}/cancel`, { method: "POST" });
+  return body.run;
 }
 
 /** Hands a request to the AI agent. The run starts at once and is followed with fetchAgentRun. */

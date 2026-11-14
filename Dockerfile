@@ -24,6 +24,11 @@ RUN npm run build
 RUN --mount=type=secret,id=valio_api_key,required=false \
     if [ -s /run/secrets/valio_api_key ]; then VALIO_API_KEY="$(cat /run/secrets/valio_api_key)" npm run data; fi
 
+# Optional: the index for search by meaning, from an OpenAI key passed the same way:
+#   docker build --secret id=valio_api_key,env=VALIO_API_KEY --secret id=openai_api_key,env=OPENAI_API_KEY ...
+RUN --mount=type=secret,id=openai_api_key,required=false \
+    if [ -s /run/secrets/openai_api_key ] && [ -f backend/data/catalog.json ]; then OPENAI_API_KEY="$(cat /run/secrets/openai_api_key)" npm run embeddings; fi
+
 FROM node:22-slim
 WORKDIR /app
 ENV NODE_ENV=production \
@@ -38,5 +43,6 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=180s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:' + process.env.PORT + '/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
 
-# Builds the catalog first if the image does not have it (needs VALIO_API_KEY), then starts the server.
-CMD ["sh", "-c", "[ -f backend/data/catalog.json ] || npm run data && exec node backend/dist/index.js"]
+# Builds the catalog first if the image does not have it (needs VALIO_API_KEY), and the index for
+# search by meaning when an OpenAI key is set (search falls back to keywords without it), then starts.
+CMD ["sh", "-c", "([ -f backend/data/catalog.json ] || npm run data) && ([ -f backend/data/embeddings.bin ] || [ -z \"$OPENAI_API_KEY\" ] || npm run embeddings || true) && exec node backend/dist/index.js"]

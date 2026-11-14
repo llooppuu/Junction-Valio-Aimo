@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { startRunSchema } from "./routes/agent.js";
+import { voiceTokenSchema } from "./routes/voice.js";
 import { alertsQuerySchema } from "./routes/alerts.js";
 import { renewStandingOrderSchema } from "./routes/standingOrders.js";
 import { quoteSuggestionSchema, suggestionsQuerySchema } from "./routes/suggestions.js";
@@ -55,7 +56,7 @@ export const OPERATIONS: Operation[] = [
   {
     method: "get",
     path: "/api/products",
-    summary: "Search the catalog by text, category, attributes, labels, allergens, deadline, and quantity",
+    summary: "Search the catalog by text, category, attributes, labels, allergens, deadline, and quantity. search=semantic ranks by meaning, in English or Finnish",
     tag: "Catalog",
     roles: [],
     query: productQuerySchema,
@@ -199,6 +200,14 @@ export const OPERATIONS: Operation[] = [
   { method: "get", path: "/api/orders/{id}", summary: "Read one order", tag: "Purchasing", roles: ["agent", "buyer"], responses: { "200": "The order", "404": "Unknown order", ...AUTH_ERRORS } },
   {
     method: "get",
+    path: "/api/orders/{id}/ubl",
+    summary: "The order as a PEPPOL BIS Order 3.0 document (UBL 2.1 XML), with fixed prices, GTINs, VAT rates, and the delivery date, to forward or import into any ordering system",
+    tag: "Purchasing",
+    roles: ["agent", "buyer"],
+    responses: { "200": "application/xml", "404": "Unknown order, or another kitchen's", ...AUTH_ERRORS },
+  },
+  {
+    method: "get",
     path: "/api/audit",
     summary: "The whole append-only audit history, newest first",
     tag: "Audit",
@@ -234,6 +243,30 @@ export const OPERATIONS: Operation[] = [
   },
   { method: "get", path: "/api/agent/runs", summary: "List agent runs, newest first", tag: "Agent", roles: ["buyer"], responses: { "200": "Runs", ...AUTH_ERRORS } },
   { method: "get", path: "/api/agent/runs/{id}", summary: "Read one run and its steps", tag: "Agent", roles: ["buyer"], responses: { "200": "The run", "404": "Unknown run", ...AUTH_ERRORS } },
+  {
+    method: "post",
+    path: "/api/agent/runs/{id}/cancel",
+    summary: "Cancel a run in progress. The agent takes no further step; anything it already did, such as a quote, is kept",
+    tag: "Agent",
+    roles: ["buyer"],
+    responses: { "200": "The run, cancelled", "404": "Unknown run", "409": "The run has already finished", ...AUTH_ERRORS },
+  },
+  { method: "get", path: "/api/voice", summary: "Whether voice input is on, and its Gemini Live model", tag: "Agent", roles: ["buyer"], responses: { "200": "Status", ...AUTH_ERRORS } },
+  {
+    method: "post",
+    path: "/api/voice/token",
+    summary: "A single-use Gemini Live token for dictating one request. The browser streams speech to Gemini with it and gets a transcript back; the Gemini key never leaves the server",
+    tag: "Agent",
+    roles: ["buyer"],
+    body: voiceTokenSchema,
+    responses: {
+      "201": "The session: token, model, language, and expiry",
+      "502": "Gemini did not issue a token",
+      "503": "No Gemini key is configured",
+      ...COMMON_ERRORS,
+      ...AUTH_ERRORS,
+    },
+  },
   {
     method: "get",
     path: "/api/wholesaler/activity",

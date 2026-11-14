@@ -30,6 +30,7 @@ export type AuditAction =
   | "demo.reset"
   | "agent.requested"
   | "agent.finished"
+  | "agent.cancelled"
   | "agent.tool_refused"
   | "access.denied";
 

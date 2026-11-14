@@ -59,6 +59,9 @@ export function ProductCatalog({ version }: { version: number }) {
   const [inStockOnly, setInStockOnly] = useState(false);
   const [rankBy, setRankBy] = useState<RankBy | "">("");
   const [deliverBy, setDeliverBy] = useState("");
+  // Search by meaning: the server ranks products by what the words mean, in English or Finnish.
+  const [byMeaning, setByMeaning] = useState(false);
+  const [fellBack, setFellBack] = useState(false);
 
   // Waits for a pause in typing before searching.
   useEffect(() => {
@@ -67,8 +70,8 @@ export function ProductCatalog({ version }: { version: number }) {
   }, [text]);
 
   const query = useMemo(
-    () => ({ q, category, labels, excludeAllergens: excluded, deliverBy, ...(rankBy ? { rankBy } : {}) }),
-    [q, category, labels, excluded, deliverBy, rankBy],
+    () => ({ q, category, labels, excludeAllergens: excluded, deliverBy, ...(rankBy ? { rankBy } : {}), ...(byMeaning && q ? { search: "semantic" } : {}) }),
+    [q, category, labels, excluded, deliverBy, rankBy, byMeaning],
   );
 
   useEffect(() => {
@@ -79,7 +82,10 @@ export function ProductCatalog({ version }: { version: number }) {
           rankings: new Map(offers.map((offer) => [offer.product.id, { rank: offer.rank, reason: offer.reason }])),
           excluded: unavailable.map((item) => ({ productId: item.productId, name: item.name, reasons: [item.reason] })),
         }))
-      : searchProducts(controller.signal, query).then(({ products, excluded }) => ({ products, rankings: new Map(), excluded }));
+      : searchProducts(controller.signal, query).then(({ products, excluded, source }) => {
+          setFellBack(query.search === "semantic" && source.search === "keyword");
+          return { products, rankings: new Map(), excluded };
+        });
     load
       .then(({ products, rankings, excluded }) => setState({ status: "ready", products, rankings, excluded }))
       .catch((error: unknown) => {
@@ -135,6 +141,10 @@ export function ProductCatalog({ version }: { version: number }) {
               onChange={(event) => setText(event.target.value)}
             />
           </label>
+          <label className="filter-check filter-meaning" title={t("catalog.byMeaningHint")}>
+            <input type="checkbox" checked={byMeaning} onChange={(event) => setByMeaning(event.target.checked)} />
+            {t("catalog.byMeaning")}
+          </label>
           <label className="filter-select">
             <span className="visually-hidden">{t("catalog.category")}</span>
             <select value={category} onChange={(event) => setCategory(event.target.value as ProductCategory | "")}>
@@ -165,6 +175,8 @@ export function ProductCatalog({ version }: { version: number }) {
             {t("catalog.inStock")}
           </label>
         </div>
+
+        {byMeaning && fellBack && <p className="section-muted catalog-fallback" role="status">{t("catalog.semanticFallback")}</p>}
 
         <div className="filter-group" role="group" aria-label={t("catalog.requiredLabels")}>
           <span className="filter-group-label">{t("catalog.labels")}</span>

@@ -4,6 +4,7 @@ import type { PackageUnit, Product, ProductQuery } from "../schemas/product.js";
 import type { Store } from "../store.js";
 import { describeTime, nextDeliveryDate } from "./dates.js";
 import type { ValioAvailability, ValioPrice } from "./valio.js";
+import { rankBySimilarity } from "./semantic.js";
 
 /**
  * Lookup in two steps, as the organizers ask: search Valio Aimo's static
@@ -80,15 +81,21 @@ export function entryAllergenConflicts(entry: Pick<CatalogEntry, "allergens" | "
  * product's names, brand, supplier, category, or attributes. A word at the
  * start of a name word counts more than one inside a word.
  */
+/** The filters both kinds of search apply before ranking: category, attributes, labels, allergens, and unit. */
+export function passesStaticFilters(entry: CatalogEntry, query: Omit<ProductQuery, "deliverBy" | "minQuantity">): boolean {
+  if (query.category && entry.category !== query.category) return false;
+  if (query.attributes?.some((attribute) => !entry.attributes.includes(attribute))) return false;
+  if (query.labels?.some((label) => !entry.labels.includes(label))) return false;
+  if (query.excludeAllergens && entryAllergenConflicts(entry, query.excludeAllergens).length > 0) return false;
+  if (query.unit && (entry.contents?.unit ?? "piece") !== query.unit) return false;
+  return true;
+}
+
 export function searchCatalog(entries: readonly CatalogEntry[], query: Omit<ProductQuery, "deliverBy" | "minQuantity">, limit = DEFAULT_RESULTS): CatalogEntry[] {
   const terms = query.q ? words(query.q) : [];
   const scored: { entry: CatalogEntry; score: number }[] = [];
   for (const entry of entries) {
-    if (query.category && entry.category !== query.category) continue;
-    if (query.attributes?.some((attribute) => !entry.attributes.includes(attribute))) continue;
-    if (query.labels?.some((label) => !entry.labels.includes(label))) continue;
-    if (query.excludeAllergens && entryAllergenConflicts(entry, query.excludeAllergens).length > 0) continue;
-    if (query.unit && (entry.contents?.unit ?? "piece") !== query.unit) continue;
+    if (!passesStaticFilters(entry, query)) continue;
     let score = 0;
     if (terms.length > 0) {
       const text = textOf(entry);
@@ -241,9 +248,42 @@ export async function liveProducts(store: Store, productIds: readonly string[], 
  * the widest set of candidates; the caller trims the results afterwards.
  */
 export async function searchLive(store: Store, query: ProductQuery, staticLimit?: number): Promise<Product[]> {
+  return (await searchLiveWithMode(store, query, staticLimit)).products;
+}
+
+export type SearchMode = "keyword" | "semantic";
+
+/**
+ * The static step of a search. A semantic search ranks the entries that pass
+ * the filters by meaning; without the index or an embedding key it falls back
+ * to the keyword search and says why.
+ */
+export async function searchEntries(
+  store: Store,
+  query: ProductQuery,
+  limit: number,
+): Promise<{ entries: CatalogEntry[]; mode: SearchMode; fallbackReason?: string }> {
+  if (query.search === "semantic" && query.q) {
+    const index = store.semantic.index();
+    if (!index) return { entries: searchCatalog(store.catalog.entries, query, limit), mode: "keyword", fallbackReason: "the semantic index has not been built (npm run embeddings)" };
+    if (!store.semantic.embedQuery) return { entries: searchCatalog(store.catalog.entries, query, limit), mode: "keyword", fallbackReason: "OPENAI_API_KEY is not set, so the query cannot be embedded" };
+    try {
+      const vector = await store.semantic.embedQuery(query.q);
+      const candidates = store.catalog.entries.filter((entry) => passesStaticFilters(entry, query));
+      return { entries: rankBySimilarity(index, vector, candidates, limit).map((item) => item.entry), mode: "semantic" };
+    } catch {
+      return { entries: searchCatalog(store.catalog.entries, query, limit), mode: "keyword", fallbackReason: "the embedding service did not answer" };
+    }
+  }
+  return { entries: searchCatalog(store.catalog.entries, query, limit), mode: "keyword" };
+}
+
+/** A search's live products, and how the static step was done. */
+export async function searchLiveWithMode(store: Store, query: ProductQuery, staticLimit?: number) {
   const liveFilters = query.deliverBy !== undefined || query.minQuantity !== undefined;
-  const entries = searchCatalog(store.catalog.entries, query, staticLimit ?? (liveFilters ? MAX_RESULTS : (query.limit ?? DEFAULT_RESULTS)));
-  return liveProducts(store, entries.map((entry) => entry.id), query.deliverBy ?? nextDeliveryDate(store.clock()));
+  const { entries, mode, fallbackReason } = await searchEntries(store, query, staticLimit ?? (liveFilters ? MAX_RESULTS : (query.limit ?? DEFAULT_RESULTS)));
+  const products = await liveProducts(store, entries.map((entry) => entry.id), query.deliverBy ?? nextDeliveryDate(store.clock()));
+  return { products, mode, ...(fallbackReason ? { fallbackReason } : {}) };
 }
 
 /** The product a signed offer names, read without verifying it: verification happens when the quote is built. */

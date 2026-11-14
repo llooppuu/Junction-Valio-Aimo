@@ -18,7 +18,9 @@
     "build": "npm run build --workspaces",
     "preview": "concurrently --names backend,frontend --prefix-colors blue,green --kill-others-on-fail \"npm run start --workspace backend\" \"npm run preview --workspace frontend\"",
     "data": "npm run data --workspace backend",
-    "mcp": "npm run mcp --workspace backend"
+    "mcp": "npm run mcp --workspace backend",
+    "embeddings": "npm run embeddings --workspace backend",
+    "smoke": "npm run smoke --workspace backend --"
   },
   "devDependencies": {
     "concurrently": "^10.0.6"

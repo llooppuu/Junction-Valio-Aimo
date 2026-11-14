@@ -64,7 +64,7 @@ The server searches Valio Aimo's product data, fetches live price and availabili
 }
 ```
 
-`rankBy` can be `price` (per litre or kilogram), `delivery`, `reliability`, `labels` (with `preferLabels`), or `carbon`. Search parameters: `q` (text, English or Finnish), `category`, `attributes`, `labels`, `excludeAllergens`, `deliverBy`, `minQuantity` with its `unit`, and `limit` (20 by default, 50 at most). Lists are comma-separated.
+`rankBy` can be `price` (per litre or kilogram), `delivery`, `reliability`, `labels` (with `preferLabels`), or `carbon`. Search parameters: `q` (text, English or Finnish), `category`, `attributes`, `labels`, `excludeAllergens`, `deliverBy`, `minQuantity` with its `unit`, and `limit` (20 by default, 50 at most). Lists are comma-separated. Add `search=semantic` to rank by what the words mean rather than matching them, in English or Finnish; the answer's `source.search` says which was used.
 
 ### 3. Create a quote at the fixed price
 
@@ -123,13 +123,13 @@ curl -X POST -H "Authorization: Bearer demo-agent-token" -H "Content-Type: appli
 
 Before committing, the server asks Valio Aimo for price and availability again. If stock changed, the quote becomes `out_of_date` and the answer lists the shortfall; `GET /api/quotes/{id}/shortfall-options` ranks the ways to cover it. Retrying an order returns the same order with `"created": false`, so a quote can become at most one order.
 
-Valio Aimo's mock environment has no order API, so an order is recorded here and is the document a person sends on. See [Valio Aimo integration](valio-integration.md#orders-wait-for-a-person).
+Valio Aimo's mock environment has no order API, so an order is recorded here, and `GET /api/orders/{id}/ubl` gives it as a PEPPOL BIS Order 3.0 document (UBL 2.1 XML) for a person to send on or a system to import. See [Valio Aimo integration](valio-integration.md#orders-wait-for-a-person).
 
 ## Endpoints
 
 | Area | Method and path | Who | What it does |
 | --- | --- | --- | --- |
-| Catalog | `GET /api/products` | public | Search by text, category, attributes, labels, allergens, deadline, and quantity |
+| Catalog | `GET /api/products` | public | Search by text or by meaning, category, attributes, labels, allergens, deadline, and quantity |
 | | `GET /api/products/{id}` | public | One product with live price and availability |
 | | `GET /api/offers` | public | Rank matching offers by price, delivery, reliability, labels, or carbon footprint, each with a reason |
 | | `GET /api/allergens` | public | The 14 EU allergens with their GS1 allergen type codes |
@@ -142,6 +142,7 @@ Valio Aimo's mock environment has no order API, so an order is recorded here and
 | | `GET /api/quotes/{id}/shortfall-options` | agent, buyer | Ranked ways to cover an out-of-date quote's shortfall |
 | | `POST /api/orders` | agent, buyer | Order an authorized quote; retrying returns the same order |
 | | `GET /api/orders`, `GET /api/orders/{id}` | agent, buyer | Orders, newest first |
+| | `GET /api/orders/{id}/ubl` | agent, buyer | The order as a PEPPOL BIS Order 3.0 document (UBL 2.1 XML) |
 | | `GET /api/policy` | agent, buyer, wholesaler | Purchasing policies, read-only; an agent sees its own |
 | Trust | `GET /.well-known/jwks.json` | public | The public key that signs offers (EdDSA, Ed25519) |
 | | `POST /api/offers/verify` | public | Verify a signed product or quote offer |
@@ -165,6 +166,9 @@ Valio Aimo's mock environment has no order API, so an order is recorded here and
 | | `GET /api/agent` | agent, buyer | Whether the AI agent is on, and its model |
 | | `POST /api/agent/runs` | buyer | Hand a request to a kitchen's AI agent |
 | | `GET /api/agent/runs`, `GET /api/agent/runs/{id}` | buyer | Runs and every API call each made |
+| | `POST /api/agent/runs/{id}/cancel` | buyer | Cancel a run in progress; anything it already did is kept |
+| | `GET /api/voice` | buyer | Whether voice input is on, and its Gemini Live model |
+| | `POST /api/voice/token` | buyer | A single-use Gemini Live token for dictating one request, in `en` or `fi` |
 | Audit | `GET /api/audit` | buyer | The whole append-only audit history, newest first |
 | | `GET /api/quotes/{id}/audit` | agent, buyer | One quote's history, oldest first |
 | Wholesaler | `GET /api/wholesaler/activity` | wholesaler | Agent activity across every buyer: counts, waiting quotes, refused attempts |
