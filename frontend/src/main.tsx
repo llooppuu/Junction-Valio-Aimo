@@ -13,6 +13,7 @@ import "./styles.css";
 import "./redesign.css";
 import "./patterns.css";
 import "./brand.css";
+import "./workspace.css";
 
 const root = document.getElementById("root");
 

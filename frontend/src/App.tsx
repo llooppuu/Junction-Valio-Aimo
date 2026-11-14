@@ -1,26 +1,17 @@
 import { Bot } from "lucide-react";
+import { AgentWorkspace } from "./components/AgentWorkspace";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityLog } from "./components/ActivityLog";
-import { AgentPanel } from "./components/AgentPanel";
-import { ApprovalQueue } from "./components/ApprovalQueue";
 import { Dashboard } from "./components/Dashboard";
-import { DemoControls } from "./components/DemoControls";
+import { HeroVideo } from "./components/HeroVideo";
 import { OrdersView } from "./components/OrdersView";
-import { Overview } from "./components/Overview";
-import { MandateCard } from "./components/MandateCard";
-import { AutonomyCard } from "./components/AutonomyCard";
-import { PolicyCard } from "./components/PolicyCard";
 import { ProductCatalog } from "./components/ProductCatalog";
 import { SiteFooter } from "./components/SiteFooter";
 import { SiteHeader } from "./components/SiteHeader";
-import { renewalRequest, StandingOrderPanel } from "./components/StandingOrder";
-import { alertRequest, StockAlerts } from "./components/StockAlerts";
-import { suggestionRequest, SuggestionsPanel } from "./components/Suggestions";
 import { WholesalerView } from "./components/WholesalerView";
 import { fetchAgentStatus, type AgentStatus } from "./lib/api";
 import { useI18n } from "./lib/i18n";
 import type { MessageKey } from "./lib/messages";
-import { personName } from "./lib/names";
 import { reliabilityBySupplier } from "./lib/risk";
 import { useHashTab } from "./lib/useHashTab";
 import { useSummary } from "./lib/useSummary";
@@ -93,7 +84,7 @@ export function App() {
   const dashboard = view === "dashboard";
 
   return (
-    <div className="shell">
+    <div className={`shell ${view === "workspace" ? "shell-workspace" : ""}`}>
       <SiteHeader
         view={view}
         onSelect={selectView}
@@ -104,7 +95,8 @@ export function App() {
       />
 
       <main className="shell-main">
-        <section className={`page-hero ${dashboard ? "page-hero-feature" : ""}`} aria-labelledby="page-title">
+        {view !== "workspace" && <section className={`page-hero ${dashboard ? "page-hero-feature" : ""}`} aria-labelledby="page-title">
+          {dashboard && <HeroVideo />}
           <div className="container page-hero-inner">
             <div>
               {dashboard && <p className="page-hero-eyebrow">{t("dash.eyebrow")}</p>}
@@ -123,74 +115,33 @@ export function App() {
               </div>
             )}
           </div>
-        </section>
+        </section>}
 
-        <div className="page">
+        <div className={`page ${view === "workspace" ? "workspace-page" : ""}`}>
           {/* Every view stays mounted, so a running agent keeps updating while you look at another view. */}
           <div id="view-dashboard" hidden={view !== "dashboard"}>
             <Dashboard summary={summary} agent={agent} onNavigate={selectView} onShowQuote={openQuote} />
           </div>
 
           <div id="view-workspace" hidden={view !== "workspace"}>
-            <div className="kitchen-switch" role="radiogroup" aria-label={t("kitchen.label")}>
-              <span className="kitchen-switch-label">{t("kitchen.label")}</span>
-              {KITCHENS.map((option) => (
-                <button
-                  key={option.agentId}
-                  type="button"
-                  role="radio"
-                  aria-checked={kitchenId === option.agentId}
-                  className={`kitchen-option ${kitchenId === option.agentId ? "kitchen-option-on" : ""}`}
-                  onClick={() => setKitchenId(option.agentId)}
-                >
-                  {personName(option.name)}
-                </button>
-              ))}
-              <span className="kitchen-switch-note">{t("kitchen.note")}</span>
-            </div>
-            <Overview summary={summary} agentAvailable={agent?.available ?? false} agentId={kitchen.agentId} />
-            <StockAlerts
-              alerts={summary?.alerts.filter((alert) => alert.agentId === kitchen.agentId) ?? []}
+            <AgentWorkspace
+              active={view === "workspace"}
+              summary={summary}
               agentAvailable={agent?.available ?? false}
-              onAsk={(alert) => setAsk({ agentId: alert.agentId, message: alertRequest(alert), at: Date.now(), sent: false })}
-            />
-            <SuggestionsPanel
-              suggestions={summary?.suggestions.filter((suggestion) => suggestion.agentId === kitchen.agentId) ?? []}
-              agentAvailable={agent?.available ?? false}
-              onAsk={(suggestion) =>
-                setAsk({ agentId: suggestion.agentId, message: suggestionRequest(suggestion), at: Date.now(), sent: false })
-              }
+              kitchen={kitchen}
+              kitchens={KITCHENS}
+              onKitchenChange={setKitchenId}
+              version={version}
+              resets={resets}
+              reliability={reliability}
+              launch={ask && !ask.sent && ask.agentId === kitchen.agentId ? { message: ask.message, at: ask.at } : null}
+              onLaunched={(at) => setAsk((current) => (current && current.at === at ? { ...current, sent: true } : current))}
+              onAsk={(agentId, message) => setAsk({ agentId, message, at: Date.now(), sent: false })}
               onChange={refresh}
+              onReset={onReset}
+              onOpenQuote={openQuote}
+              onShowActivity={() => selectView("activity")}
             />
-            <StandingOrderPanel
-              review={summary?.standingOrders.find((review) => review.agentId === kitchen.agentId)}
-              agentAvailable={agent?.available ?? false}
-              onAsk={(review) => setAsk({ agentId: review.agentId, message: renewalRequest(review), at: Date.now(), sent: false })}
-            />
-            <div className="workspace">
-              <AgentPanel
-                key={`agent-${kitchen.agentId}-${resets}`}
-                launch={ask && !ask.sent && ask.agentId === kitchen.agentId ? { message: ask.message, at: ask.at } : null}
-                onLaunched={(at) => setAsk((current) => (current && current.at === at ? { ...current, sent: true } : current))}
-                agentId={kitchen.agentId}
-                agentName={personName(kitchen.agentName)}
-                onActivity={refresh}
-              />
-              <div className="workspace-side">
-                <ApprovalQueue key={`queue-${resets}`} version={version} onDecision={refresh} reliability={reliability} />
-                <PolicyCard policy={summary?.policies.find((policy) => policy.agentId === kitchen.agentId) ?? null} />
-                <MandateCard agentId={kitchen.agentId} version={version} onChange={refresh} />
-                <AutonomyCard agentId={kitchen.agentId} version={version} onChange={refresh} />
-                <ActivityLog
-                  key={`feed-${resets}`}
-                  version={version}
-                  compact
-                  onOpenQuote={openQuote}
-                  onShowAll={() => selectView("activity")}
-                />
-                <DemoControls onReset={onReset} />
-              </div>
-            </div>
           </div>
 
           <div id="view-catalog" hidden={view !== "catalog"}>
@@ -211,7 +162,7 @@ export function App() {
         </div>
       </main>
 
-      <SiteFooter onSelect={selectView} />
+      {view !== "workspace" && <SiteFooter onSelect={selectView} />}
     </div>
   );
 }
