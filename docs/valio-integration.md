@@ -50,7 +50,7 @@ If the price and availability service is unreachable, the server says so plainly
 Valio Aimo's mock environment has no order API, and today Valio Aimo enforces no approval gates: a kitchen controls spending with internal instructions or by letting only a manager order. In an agentic setup, a person should approve the order at first. So an order here is:
 
 - created only from an authorized quote: one within the agent's earned authority, or one the buyer approved;
-- checked against Valio Aimo's price and availability again, just before it is committed;
+- checked against Valio Aimo's price and availability again, just before it is committed, with a fresh call that skips the cache; it is refused if stock, the delivery date, the order cut-off, or the agent's current authority no longer cover it, or if the quote has expired (see [Checked again at the moment of ordering](trust-and-controls.md#checked-again-at-the-moment-of-ordering));
 - recorded once per quote, with its lines, fixed prices, delivery date, and who authorized it;
 - available as a PEPPOL BIS Order 3.0 document (UBL 2.1 XML), with fixed prices, GTINs, VAT rates, and the delivery date, which a person forwards or any PEPPOL-capable system imports, until an order API exists. The Orders view has a download link on each order.
 
@@ -58,7 +58,7 @@ Valio Aimo's mock environment has no order API, and today Valio Aimo enforces no
 
 ## Stock that changes
 
-Valio Aimo's stock can change between a quote and an order. The server rechecks before committing. If a line can no longer be filled, the quote becomes `out_of_date` with the shortfall, and `GET /api/quotes/{id}/shortfall-options` shows how much of the line current stock can still fill and ranks the products that can cover the rest, cheapest first, with the reasons others cannot. Orders placed here are subtracted from the stock Valio Aimo reports, since the mock APIs take no orders.
+Valio Aimo's stock and terms can change between a quote and an order. The server rechecks before committing. If a product now arrives later than quoted, is no longer orderable, or its cut-off has passed, the quote becomes `out_of_date` with `changedTerms`. If a line can no longer be filled, the quote becomes `out_of_date` with the shortfall, and `GET /api/quotes/{id}/shortfall-options` shows how much of the line current stock can still fill and ranks the products that can cover the rest, cheapest first, with the reasons others cannot. Orders placed here are subtracted from the stock Valio Aimo reports, since the mock APIs take no orders.
 
 The agent's stock watch also checks every product a kitchen's recipes and next planned order depend on. When a supplier can no longer cover one, the agent raises an alert with a substitute for each ingredient role, before the kitchen notices the gap. Nothing is ordered until the buyer asks.
 

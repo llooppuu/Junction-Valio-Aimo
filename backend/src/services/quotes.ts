@@ -42,6 +42,15 @@ const STATUS_FOR_DECISION: Record<PermissionDecision, QuoteStatus> = {
   created_by_buyer: "approved",
 };
 
+/** A term of a quote line that Valio Aimo no longer offers, found when the quote is checked again. */
+export interface TermChange {
+  productId: string;
+  productName: string;
+  kind: "unavailable" | "delivery_date" | "cutoff_passed";
+  detail: string;
+  detailFi: string;
+}
+
 /** A quote line that current stock can no longer fill. */
 export interface Shortfall {
   productId: string;
@@ -93,6 +102,8 @@ export interface Quote {
   suggestionId?: string;
   status: QuoteStatus;
   createdAt: string;
+  /** Until when the quote can be approved or ordered, on the server, whether or not its signed offer is presented. */
+  expiresAt: string;
   createdBy: { id: string; role: string; name: string };
   lines: QuoteLine[];
   totalEurCents: number;
@@ -102,6 +113,10 @@ export interface Quote {
   deliveryDate: string;
   /** Set when a stock recheck finds the quote can no longer be filled. */
   shortfalls?: Shortfall[];
+  /** Set when Valio Aimo no longer offers a line's terms, such as its delivery date. */
+  changedTerms?: TermChange[];
+  /** Set when the quote went out of date because it expired. */
+  expired?: boolean;
   /** What every line must satisfy. Carried over to a replacement quote. */
   requirements?: Requirements;
   /** The out-of-date quote this one replaces. */
@@ -282,10 +297,12 @@ function buildQuote(store: Store, input: CreateQuoteInput, principal: Principal,
     lines.map((line) => line.lineTotalEurCents),
   );
 
+  const createdAt = store.clock();
   const quote: Quote = {
     id: `Q-${String(store.nextQuoteNumber++).padStart(4, "0")}`,
     status: STATUS_FOR_DECISION[permission.decision],
-    createdAt: new Date().toISOString(),
+    createdAt: createdAt.toISOString(),
+    expiresAt: new Date(createdAt.getTime() + QUOTE_OFFER_TTL_SECONDS * 1000).toISOString(),
     createdBy: { id: principal.id, role: principal.role, name: principal.name },
     lines,
     totalEurCents,
@@ -395,6 +412,77 @@ export function markOutOfDate(store: Store, quote: Quote, shortfalls: Shortfall[
   });
 }
 
+/** Marks a quote out of date because Valio Aimo no longer offers its terms, and records why. */
+export function markTermsChanged(store: Store, quote: Quote, changes: TermChange[], principal: Principal) {
+  quote.status = "out_of_date";
+  quote.changedTerms = changes;
+  recordAudit(store, principal, {
+    action: "quote.out_of_date",
+    quoteId: quote.id,
+    summary: `Quote ${quote.id} is out of date: Valio Aimo's terms have changed.`,
+    reason: changes.map((change) => change.detail).join("; "),
+    fi: { summary: `Tarjous ${quote.id} on vanhentunut: Valio Aimon ehdot ovat muuttuneet.`, reason: changes.map((change) => change.detailFi).join("; ") },
+  });
+}
+
+/** Marks a quote out of date because it expired, and records it. */
+export function markExpired(store: Store, quote: Quote, principal: Principal) {
+  quote.status = "out_of_date";
+  quote.expired = true;
+  recordAudit(store, principal, {
+    action: "quote.out_of_date",
+    quoteId: quote.id,
+    summary: `Quote ${quote.id} expired at ${quote.expiresAt}.`,
+    reason: "A quote holds its prices and terms for a limited time. Prepare a replacement quote.",
+    fi: { summary: `Tarjous ${quote.id} vanheni ${fiDate(quote.expiresAt)}.`, reason: "Tarjous pitää hintansa ja ehtonsa rajoitetun ajan. Tee korvaava tarjous." },
+  });
+}
+
+/** Whether the quote's validity has run out, on the server's clock. */
+export function isExpired(store: Store, quote: Quote): boolean {
+  const expiresAt = quote.expiresAt ?? new Date(new Date(quote.createdAt).getTime() + QUOTE_OFFER_TTL_SECONDS * 1000).toISOString();
+  return store.clock().getTime() >= new Date(expiresAt).getTime();
+}
+
+/**
+ * Compares each line's terms with Valio Aimo's latest answer: whether the
+ * product can still be delivered at all, whether it still arrives by the
+ * line's date, and whether the order cut-off for that date has passed.
+ */
+export function findTermChanges(store: Store, quote: Quote): TermChange[] {
+  const now = store.clock().getTime();
+  return quote.lines.flatMap((line): TermChange[] => {
+    const product = findProduct(store, line.productId);
+    const base = { productId: line.productId, productName: line.productName };
+    if (!product || product.unavailableReason || !product.deliveryDate) {
+      const reason = product?.unavailableReason ?? "Valio Aimo gives no delivery date";
+      return [{ ...base, kind: "unavailable", detail: `${line.productName} can no longer be ordered: ${reason}`, detailFi: `Tuotetta ${line.productName} ei voi enää tilata.` }];
+    }
+    if (product.deliveryDate > line.deliveryDate) {
+      return [
+        {
+          ...base,
+          kind: "delivery_date",
+          detail: `${line.productName} now arrives on ${product.deliveryDate}, not on ${line.deliveryDate} as quoted`,
+          detailFi: `${line.productName} toimitetaan nyt ${fiDate(product.deliveryDate)}, ei ${fiDate(line.deliveryDate)} kuten tarjottiin`,
+        },
+      ];
+    }
+    const cutoff = product.orderCutoff ?? line.orderCutoff;
+    if (cutoff && new Date(cutoff).getTime() <= now) {
+      return [
+        {
+          ...base,
+          kind: "cutoff_passed",
+          detail: `the order cut-off for ${line.productName} on ${line.deliveryDate} passed at ${cutoff}`,
+          detailFi: `tuotteen ${line.productName} tilausaika toimitukselle ${fiDate(line.deliveryDate)} päättyi`,
+        },
+      ];
+    }
+    return [];
+  });
+}
+
 /** Only an out-of-date quote that has not been replaced yet can be replaced. */
 /**
  * A quote can be replaced when it can no longer be ordered as it is: stock
@@ -456,9 +544,15 @@ export function recheckQuote(store: Store, id: string, principal: Principal) {
   }
 
   const shortfalls = findShortfalls(store, quote);
-  const changed = shortfalls.length > 0 && quote.status !== "out_of_date";
-  if (changed) {
+  const termChanges = shortfalls.length === 0 ? findTermChanges(store, quote) : [];
+  const expired = shortfalls.length === 0 && termChanges.length === 0 && isExpired(store, quote);
+  const changed = (shortfalls.length > 0 || termChanges.length > 0 || expired) && quote.status !== "out_of_date";
+  if (changed && shortfalls.length > 0) {
     markOutOfDate(store, quote, shortfalls, principal);
+  } else if (changed && termChanges.length > 0) {
+    markTermsChanged(store, quote, termChanges, principal);
+  } else if (changed) {
+    markExpired(store, quote, principal);
   } else {
     recordAudit(store, principal, {
       action: "quote.rechecked",
@@ -476,7 +570,7 @@ export function recheckQuote(store: Store, id: string, principal: Principal) {
     });
   }
 
-  return { quote, changed, shortfalls };
+  return { quote, changed, shortfalls, changedTerms: termChanges, expired };
 }
 
 /**
@@ -494,8 +588,12 @@ export function decideQuote(
     throw new ApiError(409, `Quote ${id} is ${quote.status}. Only a quote that needs approval can be decided.`);
   }
 
-  // Approving something stock can no longer fill would only fail later at ordering.
+  // Approving something stock can no longer fill, or that has expired, would only fail later at ordering.
   if (input.decision === "approve") {
+    if (isExpired(store, quote)) {
+      markExpired(store, quote, principal);
+      throw new ApiError(409, `Quote ${id} has expired. Prepare a replacement.`, { expired: true });
+    }
     const shortfalls = findShortfalls(store, quote);
     if (shortfalls.length > 0) {
       markOutOfDate(store, quote, shortfalls, principal);
@@ -509,7 +607,7 @@ export function decideQuote(
   quote.buyerDecision = {
     decision: input.decision,
     by: { id: principal.id, name: principal.name },
-    at: new Date().toISOString(),
+    at: store.clock().toISOString(),
     ...(input.note ? { note: input.note } : {}),
   };
   recordAudit(store, principal, {

@@ -219,12 +219,19 @@ export const orderable = (product: Product) => !product.unavailableReason;
  * delivery date, keeps them in the store, and returns them in the same order.
  * Unknown product codes are left out.
  */
-export async function liveProducts(store: Store, productIds: readonly string[], requestedDate = nextDeliveryDate(store.clock())): Promise<Product[]> {
+export async function liveProducts(
+  store: Store,
+  productIds: readonly string[],
+  requestedDate = nextDeliveryDate(store.clock()),
+  /** fresh skips the client's cache, for the check just before an order commits. */
+  options: { fresh?: boolean } = {},
+): Promise<Product[]> {
   const entries = [...new Set(productIds)].map((id) => store.catalog.byId.get(id)).filter((entry): entry is CatalogEntry => !!entry);
   if (entries.length === 0) return [];
   const answer = await store.valio.lookup(
     entries.map((entry) => entry.id),
     requestedDate,
+    options,
   );
   const now = store.clock();
   const products = entries.map((entry) => {

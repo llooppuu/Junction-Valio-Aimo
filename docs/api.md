@@ -141,7 +141,7 @@ Valio Aimo's mock environment has no order API, so an order is recorded here, an
 | | `POST /api/quotes/{id}/decision` | buyer | Approve or reject a quote that needs approval |
 | | `GET /api/quotes/{id}/shortfall-options` | agent, buyer | Ranked ways to cover an out-of-date quote's shortfall |
 | | `POST /api/orders` | agent, buyer | Order an authorized quote; retrying returns the same order |
-| | `GET /api/orders`, `GET /api/orders/{id}` | agent, buyer | Orders, newest first |
+| | `GET /api/orders`, `GET /api/orders/{id}` | agent, buyer | Orders, newest first; an agent sees its own kitchen's |
 | | `GET /api/orders/{id}/ubl` | agent, buyer | The order as a PEPPOL BIS Order 3.0 document (UBL 2.1 XML) |
 | | `GET /api/policy` | agent, buyer, wholesaler | Purchasing policies, read-only; an agent sees its own |
 | Trust | `GET /.well-known/jwks.json` | public | The public key that signs offers (EdDSA, Ed25519) |

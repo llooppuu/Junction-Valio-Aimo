@@ -51,7 +51,7 @@ Each kitchen's policy is held on the server and read-only through the API. Rules
 | Rule | Hotel chain | School kitchen | Strength |
 | --- | --- | --- | --- |
 | Spending limit per quote | €1,400.00 | €500.00 | Soft |
-| Daily limit across quotes, so splitting does not help | €1,400.00 | €500.00 | Soft |
+| Daily limit on what the agent commits alone in a Helsinki day: its orders placed that day plus its open quotes, so splitting does not help | €1,400.00 | €500.00 | Soft |
 | Excluded allergens, including "may contain" | Peanuts, tree nuts | Milk | **Hard** |
 | No allergen declaration from the manufacturer | Needs approval, except fresh produce | Needs approval, except fresh produce | Soft |
 | Required attributes | Milk must be lactose-free | | Soft |
@@ -60,6 +60,18 @@ Each kitchen's policy is held on the server and read-only through the API. Rules
 | Earned autonomy | 3 approvals in a row | 5 approvals in a row | Soft |
 
 Every quote lists each rule that applied, its outcome, and the detail in plain language, in English and Finnish.
+
+## Checked again at the moment of ordering
+
+A quote records what was true when it was made. The order commits only on what is true when it is placed, so nothing decided earlier can be reused once it no longer holds. Just before an order is recorded, the server:
+
+1. **Asks Valio Aimo afresh**, past the client's cache, for the price and availability of every line.
+2. **Refuses an expired quote.** A quote holds for 24 hours (`expiresAt`), enforced on the server whether or not the agent presents the signed offer. An expired quote becomes `out_of_date` and must be replaced.
+3. **Checks the agent's authority again** for a quote it was allowed to order alone: the buyer's current mandate, the spending and daily limits, and earned autonomy. If the buyer has since revoked a category, narrowed the mandate, or the day's spending has run out, the quote goes back to the buyer as `needs_approval` instead of being ordered. The agent loses no autonomy for it, since it did nothing wrong. A quote the buyer approved stays approved: that decision was about this exact, unchangeable quote.
+4. **Checks stock**, as before: a line that can no longer be filled makes the quote `out_of_date` with its shortfall.
+5. **Checks Valio Aimo's terms**: the product must still be orderable, still arrive by the quoted date, and its order cut-off must not have passed. A changed term makes the quote `out_of_date` with `changedTerms`, and the order keeps no date it cannot meet.
+
+Every refusal is in the audit history with the reason, in English and Finnish. `POST /api/quotes/{id}/recheck` runs the same stock, terms, and expiry checks without ordering.
 
 ## Earned autonomy
 

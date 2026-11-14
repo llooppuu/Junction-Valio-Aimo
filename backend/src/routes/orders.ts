@@ -31,9 +31,9 @@ export function ordersRouter(store: Store) {
       return;
     }
     const input = parsed.data;
-    // The order checks Valio Aimo's price and availability again, just before committing.
+    // The order asks Valio Aimo again just before committing, past any cached answer.
     const quote = store.quotes.get(input.quoteId);
-    if (quote && !quote.orderId) await liveProducts(store, quote.lines.map((line) => line.productId), quote.deliveryDate);
+    if (quote && !quote.orderId) await liveProducts(store, quote.lines.map((line) => line.productId), quote.deliveryDate, { fresh: true });
     const { order, created } = placeOrder(store, input.quoteId, currentPrincipal(res), input.offerToken);
     res.status(created ? 201 : 200).json({ order, created });
   });

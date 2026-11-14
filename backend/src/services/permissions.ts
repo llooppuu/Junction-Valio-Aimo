@@ -6,6 +6,7 @@ import type { Store } from "../store.js";
 import { acceptsUndeclared } from "../data/catalogMapping.js";
 import { earnedAutonomyCheck, recordSetback, totalsByCategory, type AutonomySettings } from "./autonomy.js";
 import { ALLERGEN_FI, ATTRIBUTE_FI, CATEGORY_FI, fiDate, fiEur, fiList } from "../i18n.js";
+import { helsinkiDate } from "./dates.js";
 
 /** Minimum nutrition per 100 ml or 100 g, for example calcium in a school's milk alternative. */
 export interface NutritionMinimum {
@@ -288,8 +289,14 @@ export function checkPermission(
   extraChecks: GuardrailCheck[] = [],
   /** Each product's line total, in the same order, so earned autonomy can be checked per category. */
   lineTotalsEurCents: number[] = products.map(() => totalEurCents / Math.max(1, products.length)),
+  /**
+   * When an existing quote is checked again just before ordering: the quote itself is left out of
+   * today's commitments, and a failed check costs the agent no autonomy, since it did nothing wrong.
+   */
+  context: { excludeQuoteId?: string; recordSetbacks?: boolean } = {},
 ): PermissionCheck {
-  const checkedAt = new Date().toISOString();
+  const checkedAt = store.clock().toISOString();
+  const recordSetbacks = context.recordSetbacks ?? true;
 
   if (principal.role === "buyer") {
     return {
@@ -314,7 +321,7 @@ export function checkPermission(
   if (!mandate) throw new ApiError(403, `Refused: ${principal.name} has no mandate from the buyer.`, { mandate: true });
   const outside = [...new Set(products.map((product) => product.category))].filter((category) => !mandate.allowedCategories.includes(category));
   if (outside.length > 0) {
-    recordSetback(store, principal, policy, outside, "refused", `Refused: outside the buyer's mandate ${mandate.id}.`);
+    if (recordSetbacks) recordSetback(store, principal, policy, outside, "refused", `Refused: outside the buyer's mandate ${mandate.id}.`);
     throw new ApiError(
       403,
       `Refused: ${outside.join(" and ")} ${outside.length === 1 ? "is" : "are"} outside the buyer's mandate ${mandate.id}, which allows ${mandate.allowedCategories.join(", ")}.`,
@@ -323,7 +330,7 @@ export function checkPermission(
   }
 
   const checks = guardrailChecks(policy, products, totalEurCents);
-  checks.splice(1, 0, dailyLimitCheck(store, policy, totalEurCents));
+  checks.splice(1, 0, dailyLimitCheck(store, policy, totalEurCents, context.excludeQuoteId));
   checks.push({
     rule: "mandate",
     outcome: totalEurCents > mandate.spendingLimitEurCents ? "needs_approval" : "passed",
@@ -343,7 +350,9 @@ export function checkPermission(
   if (blocked.length > 0) {
     // An attempt the rules block costs the agent its run of approvals in those categories.
     const conflicting = products.filter((product) => [...product.allergens, ...product.mayContain].some((allergen) => policy.excludedAllergens.includes(allergen)));
-    recordSetback(store, principal, policy, (conflicting.length > 0 ? conflicting : products).map((product) => product.category), "refused", `Blocked by the allergen rule: ${blocked.map((check) => check.detail).join("; ")}.`);
+    if (recordSetbacks) {
+      recordSetback(store, principal, policy, (conflicting.length > 0 ? conflicting : products).map((product) => product.category), "refused", `Blocked by the allergen rule: ${blocked.map((check) => check.detail).join("; ")}.`);
+    }
     throw new ApiError(
       422,
       `Blocked by ${policy.buyerName}'s allergen rule: ${blocked.map((check) => check.detail).join("; ")}. This cannot be approved. Choose a product that is free from ${list(policy.excludedAllergens)}.`,
@@ -385,25 +394,31 @@ export function checkPermission(
 }
 
 /**
- * What the agent has committed on its own today: its quotes created today that
- * it was allowed to order alone, whether or not it has ordered them yet. Quotes
- * the buyer approved do not count, because a person signed them off. Quotes
- * that went out of date or were replaced no longer commit anything.
+ * What the agent has committed on its own authority today, in Helsinki time:
+ * the orders it placed today without the buyer's approval, counted on the day
+ * they were placed, plus its open quotes that it may still order alone, which
+ * hold their amount until they are ordered or expire. Quotes and orders the
+ * buyer approved do not count, because a person signed them off.
  */
-export function committedToday(store: Store, agentId: string, now: Date = new Date()): number {
-  const today = now.toISOString().slice(0, 10);
+export function committedToday(store: Store, agentId: string, now: Date = store.clock(), excludeQuoteId?: string): number {
+  const today = helsinkiDate(now);
   let total = 0;
+  for (const order of store.orders.values()) {
+    const quote = store.quotes.get(order.quoteId);
+    if (!quote || quote.id === excludeQuoteId || quote.createdBy.id !== agentId) continue;
+    if (quote.buyerDecision || quote.permission.decision !== "within_limit") continue;
+    if (helsinkiDate(new Date(order.placedAt)) === today) total += order.totalEurCents;
+  }
   for (const quote of store.quotes.values()) {
-    if (quote.createdBy.id !== agentId || quote.createdAt.slice(0, 10) !== today) continue;
-    if (quote.permission.decision !== "within_limit") continue;
-    if (quote.status !== "within_limit" && quote.status !== "ordered") continue;
+    if (quote.id === excludeQuoteId || quote.createdBy.id !== agentId || quote.status !== "within_limit") continue;
+    if (new Date(quote.expiresAt ?? quote.createdAt).getTime() <= now.getTime()) continue;
     total += quote.totalEurCents;
   }
   return total;
 }
 
-function dailyLimitCheck(store: Store, policy: AgentPolicy, totalEurCents: number): GuardrailCheck {
-  const committed = committedToday(store, policy.agentId);
+function dailyLimitCheck(store: Store, policy: AgentPolicy, totalEurCents: number, excludeQuoteId?: string): GuardrailCheck {
+  const committed = committedToday(store, policy.agentId, store.clock(), excludeQuoteId);
   const after = committed + totalEurCents;
   const limit = formatEur(policy.dailyLimitEurCents);
   // The daily limit catches splitting. A single quote is the spending limit's job, so with nothing
