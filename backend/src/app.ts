@@ -17,6 +17,8 @@ import { mandatesRouter } from "./routes/mandates.js";
 import { autonomyRouter } from "./routes/autonomy.js";
 import { mcpRouter } from "./routes/mcp.js";
 import { voiceRouter } from "./routes/voice.js";
+import { intakeRouter } from "./routes/intake.js";
+import { openAiListReader, type ListReader } from "./services/listReader.js";
 import { geminiVoiceTokens, type VoiceTokens } from "./services/voice.js";
 import { allergensRouter } from "./routes/allergens.js";
 import { auditRouter } from "./routes/audit.js";
@@ -53,6 +55,8 @@ export interface AppOptions {
   demoAccessKey?: string;
   /** Voice input's Gemini Live sessions. By default from GEMINI_API_KEY, or null (voice off) without one. */
   voiceTokens?: VoiceTokens | null;
+  /** Reads photos of purchasing lists. By default GPT from the OpenAI settings, or null without a key. */
+  listReader?: ListReader | null;
 }
 
 function defaultAgentModel(): AgentModel | null {
@@ -62,6 +66,10 @@ function defaultAgentModel(): AgentModel | null {
     model: config.OPENAI_MODEL,
     reasoningEffort: config.OPENAI_REASONING_EFFORT,
   });
+}
+
+function defaultListReader(): ListReader | null {
+  return config.OPENAI_API_KEY ? openAiListReader(config.OPENAI_API_KEY, config.OPENAI_MODEL) : null;
 }
 
 function defaultVoiceTokens(): VoiceTokens | null {
@@ -93,6 +101,7 @@ export function createApp({
   frontendDist,
   voiceTokens = defaultVoiceTokens(),
   demoAccessKey = config.DEMO_ACCESS_KEY,
+  listReader = defaultListReader(),
 }: AppOptions = {}) {
   // Without a key, a hosted app would have no safe way to tell the head chef's browser from anyone else.
   if (frontendDist && !demoAccessKey) {
@@ -104,7 +113,9 @@ export function createApp({
   // Behind a hosting platform's proxy, so the access cookie can be marked Secure on HTTPS.
   app.set("trust proxy", 1);
   app.disable("x-powered-by");
-  app.use(express.json({ limit: "100kb" }));
+  // Small JSON bodies everywhere, except the route that takes a photo of a list and parses its own.
+  const jsonBody = express.json({ limit: "100kb" });
+  app.use((req, res, next) => (req.path === "/api/intake/list" ? next() : jsonBody(req, res, next)));
 
   // Routes registered directly on the app, so the route table below can list them too.
   const appRoutes: ApiRoute[] = [];
@@ -136,6 +147,7 @@ export function createApp({
     ["/api/demo", demoRouter(store)],
     ["/api/agent", agentRouter(store, agentModel)],
     ["/api/voice", voiceRouter(store, voiceTokens)],
+    ["/api/intake", intakeRouter(store, listReader)],
     ["/api/wholesaler", wholesalerRouter(store)],
     ["/api/recipes", recipesRouter(store)],
     ["/api/inventory", inventoryRouter(store)],

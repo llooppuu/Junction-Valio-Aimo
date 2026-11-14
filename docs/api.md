@@ -169,6 +169,7 @@ Valio Aimo's mock environment has no order API, so an order is recorded here, an
 | | `POST /api/agent/runs/{id}/cancel` | buyer | Cancel a run in progress; anything it already did is kept |
 | | `GET /api/voice` | buyer | Whether voice input is on, and its Gemini Live model |
 | | `POST /api/voice/token` | buyer | A single-use Gemini Live token for dictating one request, in `en` or `fi` |
+| | `GET /api/intake`, `POST /api/intake/list` | buyer | Read a photo or screenshot of a purchasing list (a data URL up to 4 MB) into request text to check and send; quotes and orders nothing |
 | Audit | `GET /api/audit` | buyer | The whole append-only audit history, newest first |
 | | `GET /api/quotes/{id}/audit` | agent, buyer | One quote's history, oldest first |
 | Wholesaler | `GET /api/wholesaler/activity` | wholesaler | Agent activity across every buyer: counts, waiting quotes, refused attempts |

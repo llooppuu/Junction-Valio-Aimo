@@ -70,7 +70,7 @@ export interface TestServer {
 export const TEST_ACCESS_KEY = "test-access-key-0123456789";
 
 export async function startTestServer(options: AppOptions = {}): Promise<TestServer> {
-  const server = createApp({ agentModel: null, voiceTokens: null, demoAccessKey: TEST_ACCESS_KEY, ...options, store: options.store ?? testStore() }).listen(0, "127.0.0.1");
+  const server = createApp({ agentModel: null, voiceTokens: null, listReader: null, demoAccessKey: TEST_ACCESS_KEY, ...options, store: options.store ?? testStore() }).listen(0, "127.0.0.1");
   await once(server, "listening");
   const { port } = server.address() as AddressInfo;
   const baseUrl = `http://127.0.0.1:${port}`;

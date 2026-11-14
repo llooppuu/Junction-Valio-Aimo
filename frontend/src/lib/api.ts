@@ -765,6 +765,17 @@ export async function fetchSession(): Promise<{ authenticated: boolean; role: st
   return request("/api/session");
 }
 
+/** Whether photos of purchasing lists can be read. */
+export async function fetchIntakeStatus(signal?: AbortSignal): Promise<{ available: boolean; model: string | null }> {
+  return request("/api/intake", { signal: signal ?? null });
+}
+
+/** Reads a photo of a purchasing list into request text. Nothing is quoted or ordered. */
+export async function readListPhoto(image: string, language: "en" | "fi"): Promise<string> {
+  const body = await request<{ text: string }>("/api/intake/list", { method: "POST", body: JSON.stringify({ image, language }) });
+  return body.text;
+}
+
 export interface VoiceStatus {
   available: boolean;
   model: string | null;

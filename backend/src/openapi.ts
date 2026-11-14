@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { startRunSchema } from "./routes/agent.js";
 import { voiceTokenSchema } from "./routes/voice.js";
+import { readListSchema } from "./routes/intake.js";
 import { alertsQuerySchema } from "./routes/alerts.js";
 import { renewStandingOrderSchema } from "./routes/standingOrders.js";
 import { quoteSuggestionSchema, suggestionsQuerySchema } from "./routes/suggestions.js";
@@ -260,6 +261,23 @@ export const OPERATIONS: Operation[] = [
     responses: { "200": "The run, cancelled", "404": "Unknown run", "409": "The run has already finished", ...AUTH_ERRORS },
   },
   { method: "get", path: "/api/voice", summary: "Whether voice input is on, and its Gemini Live model", tag: "Agent", roles: ["buyer"], responses: { "200": "Status", ...AUTH_ERRORS } },
+  { method: "get", path: "/api/intake", summary: "Whether photos of purchasing lists can be read, and the model that reads them", tag: "Agent", roles: ["buyer"], responses: { "200": "Status", ...AUTH_ERRORS } },
+  {
+    method: "post",
+    path: "/api/intake/list",
+    summary: "Read a photo or screenshot of a purchasing list into a request for the buyer to check and send. Nothing is quoted or ordered",
+    tag: "Agent",
+    roles: ["buyer"],
+    body: readListSchema,
+    responses: {
+      "200": "The request text",
+      "422": "Not a purchasing list",
+      "502": "The model did not answer",
+      "503": "No OpenAI key is configured",
+      ...COMMON_ERRORS,
+      ...AUTH_ERRORS,
+    },
+  },
   {
     method: "post",
     path: "/api/voice/token",

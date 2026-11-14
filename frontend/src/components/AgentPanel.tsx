@@ -16,6 +16,7 @@ import { MenuPlanTable } from "./MenuPlanTable";
 import { localized } from "../lib/reasons";
 import { RequestComposer } from "./RequestComposer";
 import { VoiceInput } from "./VoiceInput";
+import { ListPhotoInput } from "./ListPhotoInput";
 
 const POLL_INTERVAL_MS = 700;
 
@@ -326,13 +327,16 @@ export function AgentPanel({ launch = null, onLaunched, agentId, agentName, onAc
           onCancel={activeRunId ? () => void cancel(activeRunId) : undefined}
           inputActions={
             agent.status === "on" && (
-              <VoiceInput
-                draft={message}
-                onDraft={setMessage}
-                onDone={() => inputRef.current?.focus()}
-                onSend={(text) => void send(text)}
-                disabled={busy}
-              />
+              <>
+                <ListPhotoInput draft={message} onDraft={setMessage} onDone={() => inputRef.current?.focus()} disabled={busy} />
+                <VoiceInput
+                  draft={message}
+                  onDraft={setMessage}
+                  onDone={() => inputRef.current?.focus()}
+                  onSend={(text) => void send(text)}
+                  disabled={busy}
+                />
+              </>
             )
           }
         />

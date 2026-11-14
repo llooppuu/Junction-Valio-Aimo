@@ -307,7 +307,8 @@
   position: relative;
 }
 
-.voice-input {
+.voice-input,
+.list-photo-input {
   justify-content: center;
   min-height: 2.75rem;
   white-space: nowrap;

@@ -125,6 +125,11 @@ await check("AI agent", async () => {
   return { ok: status === 200 && body?.available, optional: status === 200, detail: body?.available ? `on, ${body.model}` : "off (no OPENAI_API_KEY)" };
 });
 
+await check("List photos", async () => {
+  const { status, body } = await get("/api/intake", buyerToken);
+  return { ok: status === 200 && body?.available, optional: status === 200, detail: body?.available ? `on, ${body.model}` : "off (no OPENAI_API_KEY)" };
+});
+
 await check("Voice input", async () => {
   const { status, body } = await get("/api/voice", buyerToken);
   return { ok: status === 200 && body?.available, optional: status === 200, detail: body?.available ? `on, ${body.model}` : "off (no GEMINI_API_KEY)" };
