@@ -46,9 +46,10 @@ flowchart LR
 | Exceptions | `alternatives.ts`, `substitutes.ts`, `shortfall.ts`, `stockWatch.ts` | Alternatives behind each choice, substitutes by recipe role, shortfall options, and the agent's own stock watch. |
 | Kitchen data | `backend/src/data/` | The kitchens' recipes, inventory, planned orders, track records, and the wholesaler's launches. Ours, not Valio Aimo's. |
 | AI agent | `backend/src/agent/` | Runs a request through the public API with the agent's own token, using 16 tools. It gets no shortcut past any rule. |
+| MCP layer | `backend/src/mcp/`, `routes/mcp.ts` | Lists the agent's 16 tools to MCP clients over stdio or HTTP and forwards each call to the REST API with that client's token. |
 | Audit | `backend/src/services/audit.ts` | Appends a frozen entry for every step, in English and Finnish. No route edits or deletes one. |
 
-## A request, end to end
+## Following one request
 
 ```mermaid
 sequenceDiagram
@@ -77,7 +78,7 @@ sequenceDiagram
 
 ## Design choices
 
-**The server decides, not the prompt.** An agent's rules, limits, and mandate live on the server. The agent reads them through the API, but no request can change them, and every quote is checked against them. A model that is tricked into ignoring its instructions is still stopped by the server, which the adversarial tests show.
+**Rules are enforced where the data is.** An agent's rules, limits, and mandate are stored with the API. The agent can look them up, has no request that alters them, and every quote is measured against them. Even a model talked into ignoring its instructions gets nowhere, as the adversarial tests demonstrate.
 
 **Agents use the public API like anyone else.** The built-in AI agent calls the same endpoints as an external agent would, with its own token. Nothing it does is possible only because it runs inside the server.
 

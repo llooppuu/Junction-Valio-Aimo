@@ -39,7 +39,7 @@ Set these as environment variables on the platform. Never bake them into the ima
 
 `GET /api/health` answers `200` when the server is up. The image has a Docker health check that uses it, with a start period long enough for a first-start catalog build.
 
-## Security notes
+## Before exposing it publicly
 
 - **The browser app acts as the buyer.** In production, the server adds the buyer's token to browser requests without a token of their own (and the wholesaler's under `/api/wholesaler`), as the development proxy does. Anyone who can open the app can act as the head chef. For a public demo that is intended; for real use, put the app behind the buyer organization's sign-in.
 - **Agents keep their own tokens.** A request that brings its own bearer token keeps it, so an external agent is always treated as an agent.

@@ -15,6 +15,7 @@ import { standingOrdersRouter } from "./routes/standingOrders.js";
 import { suggestionsRouter } from "./routes/suggestions.js";
 import { mandatesRouter } from "./routes/mandates.js";
 import { autonomyRouter } from "./routes/autonomy.js";
+import { mcpRouter } from "./routes/mcp.js";
 import { allergensRouter } from "./routes/allergens.js";
 import { auditRouter } from "./routes/audit.js";
 import { demoRouter } from "./routes/demo.js";
@@ -117,6 +118,7 @@ export function createApp({ store = createStore(), agentModel = defaultAgentMode
     ["/api/suggestions", suggestionsRouter(store)],
     ["/api/mandates", mandatesRouter(store)],
     ["/api/autonomy", autonomyRouter(store)],
+    ["/api/mcp", mcpRouter(store)],
   ];
   if (frontendDist) app.use("/api", browserTokenMiddleware({ buyer: config.BUYER_TOKEN, wholesaler: config.WHOLESALER_TOKEN }));
   for (const [path, router] of mounts) app.use(path, router);

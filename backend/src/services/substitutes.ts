@@ -23,7 +23,7 @@ export interface SubstituteRequest {
   requirements: Requirements;
   /**
    * By default a substitute may not add an allergen the requested product does
-   * not contain, because that would silently change the allergen declaration of
+   * not contain, because that would quietly change the allergen declaration of
    * the dish it goes into. Set this only when the buyer has accepted that.
    */
   allowNewAllergens?: boolean;

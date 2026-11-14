@@ -305,7 +305,7 @@ export function checkPermission(
 
   const policy = store.policies.get(principal.id);
   if (!policy) {
-    // Fail closed: an agent without a policy may not spend anything on its own.
+    // With no policy on record, the agent may not spend anything on its own.
     throw new ApiError(403, `No purchasing policy exists for agent ${principal.id}.`);
   }
 
