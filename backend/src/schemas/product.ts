@@ -39,11 +39,12 @@ const nutritionSchema = z.strictObject({
 });
 
 /**
- * How much Valio Aimo can deliver: a counted amount, plenty in stock, an
- * amount it cannot know because the supplier delivers from its own warehouse,
- * or nothing.
+ * How much Valio Aimo can deliver: a counted amount; an amount it does not
+ * report (999,999 or more), so any quantity can be ordered; the same for a
+ * product the supplier delivers from its own warehouse and confirms with the
+ * order; or nothing.
  */
-export const stockStatusSchema = z.enum(["counted", "plenty", "unconfirmed", "none"]);
+export const stockStatusSchema = z.enum(["counted", "unknown", "unconfirmed", "none"]);
 
 /**
  * A product as an agent sees it: Valio Aimo's static product data, with the

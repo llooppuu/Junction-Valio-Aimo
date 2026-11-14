@@ -4,7 +4,7 @@ import express, {
   type Response,
   type Router,
 } from "express";
-import { ValioUnavailableError } from "./services/valio.js";
+import { ValioRateLimitedError, ValioUnavailableError } from "./services/valio.js";
 import type { AgentModel } from "./agent/model.js";
 import { createOpenAiModel } from "./agent/openai-model.js";
 import { config } from "./config.js";
@@ -127,6 +127,8 @@ export function createApp({ store = createStore(), agentModel = defaultAgentMode
       }
       // Valio Aimo's APIs did not answer: say so plainly, and never guess a price or stock.
       if (error instanceof ValioUnavailableError) {
+        // When Valio Aimo's rate limit is the cause, tell the caller when to try again.
+        if (error instanceof ValioRateLimitedError) res.setHeader("Retry-After", String(Math.max(1, error.retryAfterSeconds)));
         res.status(503).json({ error: error.message, upstream: "valio-aimo" });
         return;
       }

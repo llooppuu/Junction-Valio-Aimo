@@ -26,7 +26,7 @@ describe("POST /api/quotes", () => {
     assert.equal(line.vatRatePercent, 13.5);
     assert.equal(line.customerPrice, true);
     assert.equal(line.orderCutoff, "2026-11-15T17:00:00+0200");
-    assert.equal(line.stockStatus, "plenty");
+    assert.equal(line.stockStatus, "unknown");
     assert.equal(body.quote.totalEurCents, 101000);
     assert.equal(body.quote.deliveryDate, "2026-11-16");
     assert.equal(body.quote.createdBy.role, "agent");

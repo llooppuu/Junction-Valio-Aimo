@@ -144,7 +144,7 @@ function defaultValio(): ValioClient {
   sharedValio = apiKey
     ? createHttpValio({ apiKey, baseUrl: config.VALIO_API_URL })
     : {
-        stats: { calls: 0, productsRequested: 0, cacheHits: 0, failures: 0 },
+        stats: { calls: 0, productsRequested: 0, cacheHits: 0, failures: 0, rateLimited: 0 },
         lookup: () => Promise.reject(new ValioUnavailableError("VALIO_API_KEY is not set")),
       };
   return sharedValio;

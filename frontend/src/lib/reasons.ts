@@ -32,10 +32,11 @@ const PHRASES: [RegExp, (...parts: string[]) => string][] = [
   [/^Valio Aimo cannot deliver it on any date$/, () => "Valio Aimo ei voi toimittaa sitä millekään päivälle"],
   [/^Valio Aimo has blocked its sales for now$/, () => "Valio Aimo on toistaiseksi estänyt sen myynnin"],
   [/^Valio Aimo has no price for it$/, () => "Valio Aimolla ei ole sille hintaa"],
-  [/^none available for (d{4})-(d{2})-(d{2})$/, (_all, year, month, day) => `ei saatavilla ${Number(day)}.${Number(month)}.${year}`],
+  [/^Valio Aimo did not report its availability$/, () => "Valio Aimo ei ilmoittanut sen saatavuutta"],
+  [/^none available for (\d{4})-(\d{2})-(\d{2})$/, (_all, year, month, day) => `ei saatavilla ${Number(day)}.${Number(month)}.${year}`],
   [/^none available$/, () => "ei saatavilla"],
   [
-    /^the order cut-off for delivery on (d{4})-(d{2})-(d{2}) was (.+)$/,
+    /^the order cut-off for delivery on (\d{4})-(\d{2})-(\d{2}) was (.+)$/,
     (_all, year, month, day, time) => `toimitukselle ${Number(day)}.${Number(month)}.${year} tilausaika päättyi (${time})`,
   ],
   [/^allergens not declared by the manufacturer$/, () => "valmistaja ei ole ilmoittanut allergeeneja"],

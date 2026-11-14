@@ -49,8 +49,8 @@ export function ProductCard({ product, ranking }: ProductCardProps) {
   const stock =
     !available
       ? serverPhrase(product.unavailableReason!)
-      : product.stockStatus === "plenty"
-        ? t("stock.plenty")
+      : product.stockStatus === "unknown"
+        ? t("stock.unknown")
         : product.stockStatus === "unconfirmed"
           ? t("stock.unconfirmed")
           : `${formatPackages(product.availablePackages)} (${formatTotalStock(product)})`;

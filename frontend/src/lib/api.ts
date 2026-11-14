@@ -96,7 +96,7 @@ export interface SupplierReliability {
   flagged: boolean;
 }
 
-export type StockStatus = "counted" | "plenty" | "unconfirmed" | "none";
+export type StockStatus = "counted" | "unknown" | "unconfirmed" | "none";
 
 /** A Valio Aimo product with the price and availability its APIs returned for the delivery date. */
 export interface Product {

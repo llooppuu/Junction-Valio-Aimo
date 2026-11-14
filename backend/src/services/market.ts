@@ -20,11 +20,22 @@ export const COMPARABLE_LIMIT = 10;
 /** How many products a search returns unless the caller asks for more. */
 export const DEFAULT_RESULTS = 20;
 export const MAX_RESULTS = 50;
-/** Valio Aimo reports these for stock it does not limit or cannot see. */
-const UNCONFIRMED_AMOUNT = 999_999;
-const PLENTY_THRESHOLD = 1_000_000;
-/** An order can never need this many sales units, so plenty or unconfirmed stock never limits one. */
+/**
+ * Valio Aimo reports an amount of 999,999 or more when it does not know the
+ * availability, typically for supplier-delivered (terminal) products it does
+ * not stock. Its own logic then allows ordering any quantity.
+ */
+export const UNKNOWN_AMOUNT_THRESHOLD = 999_999;
+/** An order can never need this many sales units, so an unknown amount never limits one. */
 export const UNLIMITED_PACKAGES = 999_999;
+
+/**
+ * Sales units Valio Aimo can deliver from a reported amount. Fractions below
+ * one, such as 0.01 crates, are a technical artefact and mean one unit.
+ */
+export function countedPackages(amount: number): number {
+  return amount > 0 && amount < 1 ? 1 : Math.floor(amount);
+}
 
 const words = (text: string) =>
   text
@@ -133,15 +144,16 @@ export function toProduct(entry: CatalogEntry, price: ValioPrice | undefined, av
   else if (!availability) unavailableReason = "Valio Aimo did not report its availability";
   else if (availability.salesBlock || line?.salesBlock) unavailableReason = "Valio Aimo has blocked its sales for now";
   else if (!line) unavailableReason = "Valio Aimo cannot deliver it on any date";
-  else if (line.availableAmount <= 0) unavailableReason = `none available${line.availableDate ? ` for ${line.availableDate}` : ""}`;
-  else if (availability.logisticModel === "Terminal" && line.availableAmount === UNCONFIRMED_AMOUNT) {
+  // An empty amount means the product is not available.
+  else if (typeof line.availableAmount !== "number" || !Number.isFinite(line.availableAmount) || line.availableAmount <= 0) {
+    unavailableReason = `none available${line.availableDate ? ` for ${line.availableDate}` : ""}`;
+  } else if (line.availableAmount >= UNKNOWN_AMOUNT_THRESHOLD) {
+    // Valio Aimo does not know the amount and allows any quantity. A supplier-delivered product is
+    // confirmed by the supplier with the order; for any other product the amount is simply not reported.
     availablePackages = UNLIMITED_PACKAGES;
-    stockStatus = "unconfirmed";
-  } else if (line.availableAmount >= PLENTY_THRESHOLD) {
-    availablePackages = UNLIMITED_PACKAGES;
-    stockStatus = "plenty";
+    stockStatus = availability.logisticModel === "Terminal" ? "unconfirmed" : "unknown";
   } else {
-    availablePackages = Math.floor(line.availableAmount);
+    availablePackages = countedPackages(line.availableAmount);
     stockStatus = "counted";
   }
   if (!unavailableReason && cutoffPassed && availability?.closingTime) {

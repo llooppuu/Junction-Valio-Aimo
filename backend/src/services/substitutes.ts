@@ -280,7 +280,7 @@ function scoreCandidate(
               ? "keeps none of the requested labels"
               : `keeps ${kept.length} of ${original.labels.length} labels`,
       ].join(", "),
-      availability: `${product.stockStatus === "plenty" ? "plenty in stock" : product.stockStatus === "unconfirmed" ? "delivered from the supplier's warehouse, amount unconfirmed" : `stock covers the order ${Math.floor(product.availablePackages / packages)} times over`}; ${reliability !== undefined ? `${Math.round(reliability * 100)}% delivered as ordered` : "no delivery record"}`,
+      availability: `${product.stockStatus === "unknown" ? "amount not reported, any quantity can be ordered" : product.stockStatus === "unconfirmed" ? "delivered from the supplier's warehouse, amount unconfirmed" : `stock covers the order ${Math.floor(product.availablePackages / packages)} times over`}; ${reliability !== undefined ? `${Math.round(reliability * 100)}% delivered as ordered` : "no delivery record"}`,
     },
   };
 }
