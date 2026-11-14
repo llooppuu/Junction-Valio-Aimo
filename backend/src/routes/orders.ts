@@ -3,11 +3,10 @@ import { z } from "zod";
 import { currentPrincipal, requireRole } from "../auth.js";
 import { describeIssues, sendValidationError } from "../http.js";
 import { recordAudit } from "../services/audit.js";
-import { getOrder, placeOrder } from "../services/orders.js";
+import { placeOrder, visibleOrder, visibleOrders } from "../services/orders.js";
 import { liveProducts } from "../services/market.js";
 import type { Store } from "../store.js";
 import { orderToUbl } from "../services/ubl.js";
-import { ApiError } from "../http.js";
 
 export const placeOrderSchema = z.strictObject({
   quoteId: z.string().min(1),
@@ -39,21 +38,18 @@ export function ordersRouter(store: Store) {
     res.status(created ? 201 : 200).json({ order, created });
   });
 
+  // An agent sees only its own kitchen's orders; the buyer sees all.
   router.get("/", anyRole, (_req, res) => {
-    res.json({ orders: [...store.orders.values()].reverse() });
+    res.json({ orders: visibleOrders(store, currentPrincipal(res)) });
   });
 
   router.get("/:id", anyRole, (req, res) => {
-    res.json({ order: getOrder(store, String(req.params.id)) });
+    res.json({ order: visibleOrder(store, String(req.params.id), currentPrincipal(res)) });
   });
 
   // The order as a PEPPOL BIS Order 3.0 document, to forward or import. An agent may export only its own kitchen's orders.
   router.get("/:id/ubl", anyRole, (req, res) => {
-    const order = getOrder(store, String(req.params.id));
-    const principal = currentPrincipal(res);
-    if (principal.role === "agent" && store.quotes.get(order.quoteId)?.createdBy.id !== principal.id) {
-      throw new ApiError(404, `Order ${order.id} not found.`);
-    }
+    const order = visibleOrder(store, String(req.params.id), currentPrincipal(res));
     res.type("application/xml").set("Content-Disposition", `attachment; filename="${order.id}.xml"`).send(orderToUbl(store, order));
   });
 

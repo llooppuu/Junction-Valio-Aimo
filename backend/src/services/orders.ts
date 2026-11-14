@@ -152,6 +152,23 @@ export function placeOrder(store: Store, quoteId: string, principal: Principal, 
   return { order, created: true };
 }
 
+/** Whether the caller may see an order: the buyer sees all, an agent only those from its own quotes. */
+function canSeeOrder(store: Store, order: Order, principal: Principal): boolean {
+  return principal.role !== "agent" || store.quotes.get(order.quoteId)?.createdBy.id === principal.id;
+}
+
+/** An order as the caller may see it; another kitchen's order is answered as not found. */
+export function visibleOrder(store: Store, id: string, principal: Principal): Order {
+  const order = store.orders.get(id);
+  if (!order || !canSeeOrder(store, order, principal)) throw new ApiError(404, `Order ${id} not found.`);
+  return order;
+}
+
+/** Every order the caller may see, newest first. */
+export function visibleOrders(store: Store, principal: Principal): Order[] {
+  return [...store.orders.values()].filter((order) => canSeeOrder(store, order, principal)).reverse();
+}
+
 export function getOrder(store: Store, id: string): Order {
   const order = store.orders.get(id);
   if (!order) {

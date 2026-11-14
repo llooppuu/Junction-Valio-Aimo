@@ -523,6 +523,24 @@ function updateTrackRecord(store: Store, quote: Quote, decision: "approve" | "re
   else recordSetback(store, principal, policy, byCategory.keys(), "rejected", note ? `Rejected by the buyer: ${note}` : `The buyer rejected quote ${quote.id}.`, quote.id);
 }
 
+/**
+ * A quote as the caller may see it. An agent sees only the quotes it created,
+ * for its own kitchen; another kitchen's quote is answered as not found, so its
+ * existence is not revealed either. The buyer sees every quote.
+ */
+export function visibleQuote(store: Store, id: string, principal: Principal): Quote {
+  const quote = store.quotes.get(id);
+  if (!quote || (principal.role === "agent" && quote.createdBy.id !== principal.id)) {
+    throw new ApiError(404, `Quote ${id} not found.`);
+  }
+  return quote;
+}
+
+/** Every quote the caller may see, newest first. */
+export function visibleQuotes(store: Store, principal: Principal): Quote[] {
+  return [...store.quotes.values()].filter((quote) => principal.role !== "agent" || quote.createdBy.id === principal.id).reverse();
+}
+
 export function getQuote(store: Store, id: string): Quote {
   const quote = store.quotes.get(id);
   if (!quote) {
