@@ -19,7 +19,7 @@ Without the secret, the image builds without the catalog, and the container buil
 docker run --env-file .env -p 8080:8080 trusted-trade-agents
 ```
 
-Open <http://localhost:8080>. The image sets `PORT=8080` and `FRONTEND_DIST`; most platforms set `PORT` themselves, and the server listens on it.
+Open <http://localhost:8080/login?key=YOUR_DEMO_ACCESS_KEY>. The image sets `PORT=8080` and `FRONTEND_DIST`; most platforms set `PORT` themselves, and the server listens on it.
 
 ## Configuration
 
@@ -35,7 +35,8 @@ Set these as environment variables on the platform. Never bake them into the ima
 | `GEMINI_LIVE_MODEL` | No | `gemini-3.5-transcribe-live` by default; any Gemini Live model works |
 | `AGENT_TOKEN`, `SCHOOL_AGENT_TOKEN`, `BUYER_TOKEN`, `WHOLESALER_TOKEN` | Yes, when exposed | Set your own values of at least 8 characters before the app is reachable from the internet |
 | `PORT` | Set by the image | The port to listen on; platforms usually set it |
-| `FRONTEND_DIST` | Set by the image | Where the built frontend is; when set, the server serves it and adds the demo tokens to browser requests |
+| `FRONTEND_DIST` | Set by the image | Where the built frontend is; when set, the server serves it |
+| `DEMO_ACCESS_KEY` | Yes | The secret in the access link, at least 16 characters. The server will not start without it |
 
 ## Health check
 
@@ -66,7 +67,7 @@ A `FAIL` line exits with an error. `off` marks an optional feature whose key is 
 
 ## Before exposing it publicly
 
-- **The browser app acts as the buyer.** In production, the server adds the buyer's token to browser requests without a token of their own (and the wholesaler's under `/api/wholesaler`), as the development proxy does. Anyone who can open the app can act as the head chef. For a public demo that is intended; for real use, put the app behind the buyer organization's sign-in.
+- **The app opens from its access link.** Share `https://your-app.example.com/login?key=<DEMO_ACCESS_KEY>` with the people who should use the demo. Opening it sets a signed, HTTP-only session cookie for 30 days, and only a browser with that cookie acts as the head chef (and as the wholesaler under `/api/wholesaler`). The link can be opened any number of times; change the key to sign everyone out. Anyone else sees a sign-in screen, and a request without a token or the cookie is refused, so leaving out an agent token grants nothing. For real use, replace the link with the buyer organization's sign-in.
 - **Agents keep their own tokens.** A request that brings its own bearer token keeps it, so an external agent is always treated as an agent.
 - **Keys stay on the server.** The Valio Aimo, OpenAI, and Gemini keys are read only by the backend and never sent to a browser or an agent. For voice input the browser gets a single-use Gemini token that opens one session.
 - **Serve over HTTPS.** Platforms terminate TLS in front of the container; a virtual machine needs a reverse proxy that does. Browsers also allow the microphone only on `https://` pages and on `localhost`.

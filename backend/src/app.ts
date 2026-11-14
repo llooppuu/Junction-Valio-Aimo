@@ -31,7 +31,8 @@ import { substitutesRouter } from "./routes/substitutes.js";
 import { suppliersRouter } from "./routes/suppliers.js";
 import { wholesalerRouter } from "./routes/wholesaler.js";
 import { inventoryRouter, recipesRouter } from "./routes/recipes.js";
-import { browserTokenMiddleware, serveFrontend } from "./web.js";
+import { browserTokenMiddleware, demoLoginHandler, serveFrontend, type DemoAccess } from "./web.js";
+import { optionalPrincipal } from "./auth.js";
 import { openApiDocument } from "./openapi.js";
 import { jwks } from "./services/signing.js";
 import { createStore, type Store } from "./store.js";
@@ -44,10 +45,12 @@ export interface AppOptions {
    */
   agentModel?: AgentModel | null;
   /**
-   * The built frontend to serve, in production. Browser requests without a token then get the
-   * buyer's or wholesaler's demo token, as the Vite proxy adds them in development.
+   * The built frontend to serve, in production. Browsers that opened the access link then act
+   * as the buyer (or the wholesaler), as the Vite proxy arranges in development.
    */
   frontendDist?: string;
+  /** The secret in the access link, /login?key=…. Required with frontendDist. Defaults to DEMO_ACCESS_KEY. */
+  demoAccessKey?: string;
   /** Voice input's Gemini Live sessions. By default from GEMINI_API_KEY, or null (voice off) without one. */
   voiceTokens?: VoiceTokens | null;
 }
@@ -84,8 +87,22 @@ function routesOf(base: string, router: Router): ApiRoute[] {
   );
 }
 
-export function createApp({ store = createStore(), agentModel = defaultAgentModel(), frontendDist, voiceTokens = defaultVoiceTokens() }: AppOptions = {}) {
+export function createApp({
+  store = createStore(),
+  agentModel = defaultAgentModel(),
+  frontendDist,
+  voiceTokens = defaultVoiceTokens(),
+  demoAccessKey = config.DEMO_ACCESS_KEY,
+}: AppOptions = {}) {
+  // Without a key, a hosted app would have no safe way to tell the head chef's browser from anyone else.
+  if (frontendDist && !demoAccessKey) {
+    throw new Error("Set DEMO_ACCESS_KEY (at least 16 characters) to serve the frontend. People open the app with /login?key=<DEMO_ACCESS_KEY>.");
+  }
+  const access: DemoAccess | undefined =
+    frontendDist && demoAccessKey ? { key: demoAccessKey, buyerToken: config.BUYER_TOKEN, wholesalerToken: config.WHOLESALER_TOKEN } : undefined;
   const app = express();
+  // Behind a hosting platform's proxy, so the access cookie can be marked Secure on HTTPS.
+  app.set("trust proxy", 1);
   app.disable("x-powered-by");
   app.use(express.json({ limit: "100kb" }));
 
@@ -129,7 +146,15 @@ export function createApp({ store = createStore(), agentModel = defaultAgentMode
     ["/api/autonomy", autonomyRouter(store)],
     ["/api/mcp", mcpRouter(store)],
   ];
-  if (frontendDist) app.use("/api", browserTokenMiddleware({ buyer: config.BUYER_TOKEN, wholesaler: config.WHOLESALER_TOKEN }));
+  if (access) {
+    app.get("/login", demoLoginHandler(access));
+    app.use("/api", browserTokenMiddleware(access));
+  }
+  // Who the caller is, so the browser app knows whether to show the sign-in screen.
+  get(["/api/session"], (req, res) => {
+    const principal = optionalPrincipal(store.principals, req);
+    res.json({ authenticated: principal !== undefined, role: principal?.role ?? null, accessLink: access !== undefined });
+  });
   for (const [path, router] of mounts) app.use(path, router);
   // Every route the app serves, for the test that keeps the OpenAPI document complete.
   app.locals.routes = [...appRoutes, ...mounts.flatMap(([path, router]) => routesOf(path, router))];

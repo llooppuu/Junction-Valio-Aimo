@@ -55,6 +55,14 @@ export const OPERATIONS: Operation[] = [
   { method: "get", path: "/api/health", summary: "Check that the backend is running", tag: "Service", roles: [], responses: { "200": "Running" } },
   {
     method: "get",
+    path: "/api/session",
+    summary: "Who the caller is: a valid token, or a browser that opened the demo's access link",
+    tag: "Service",
+    roles: [],
+    responses: { "200": "authenticated, role, and whether the app uses an access link" },
+  },
+  {
+    method: "get",
     path: "/api/products",
     summary: "Search the catalog by text, category, attributes, labels, allergens, deadline, and quantity. search=semantic ranks by meaning, in English or Finnish",
     tag: "Catalog",

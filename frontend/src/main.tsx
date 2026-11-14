@@ -8,6 +8,7 @@ import "@fontsource/barlow-condensed/latin-600.css";
 import "@fontsource/barlow-condensed/latin-700.css";
 import "@fontsource/source-serif-4/latin-400.css";
 import { App } from "./App";
+import { AccessGate } from "./components/AccessGate";
 import { LanguageProvider } from "./lib/i18n";
 import "./styles.css";
 import "./redesign.css";
@@ -24,7 +25,9 @@ if (!root) {
 createRoot(root).render(
   <StrictMode>
     <LanguageProvider>
-      <App />
+      <AccessGate>
+        <App />
+      </AccessGate>
     </LanguageProvider>
   </StrictMode>,
 );

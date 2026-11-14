@@ -368,6 +368,50 @@
   }
 }
 
+.access-gate {
+  min-height: 100vh;
+  padding: 1.5rem 1rem;
+  background: var(--brand-mist);
+}
+
+.access-gate-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 28rem;
+  margin: 0 auto 2rem;
+}
+
+.access-gate-card {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 28rem;
+  margin: 0 auto;
+  padding: 1.5rem;
+  border-top: 3px solid var(--brand-teal);
+  background: #fff;
+}
+
+.access-gate-card h1 {
+  margin: 0;
+}
+
+.access-gate-card input {
+  min-height: 2.75rem;
+  padding: 0.5rem;
+  border: 1px solid var(--brand-teal);
+  font-size: 1rem;
+}
+
+.access-gate-language {
+  padding: 0.25rem 0.75rem;
+  background: var(--brand-teal);
+}
+
+.access-gate-icon {
+  color: var(--brand-teal);
+}
+
 .workspace-drawer {
   position: fixed;
   inset: 0 0 0 auto;

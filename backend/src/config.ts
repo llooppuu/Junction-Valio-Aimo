@@ -21,6 +21,14 @@ const envSchema = z.object({
     .trim()
     .optional()
     .transform((value) => value || undefined),
+  // The secret in the demo's access link, /login?key=<value>. Required when FRONTEND_DIST is set:
+  // only a browser that opened the link acts as the buyer. At least 16 characters.
+  DEMO_ACCESS_KEY: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => value || undefined)
+    .pipe(z.string().min(16, "DEMO_ACCESS_KEY must be at least 16 characters").optional()),
   // Demo credentials. Every value here is synthetic, but change them before exposing the app.
   AGENT_TOKEN: z.string().min(8).default("demo-agent-token"),
   BUYER_TOKEN: z.string().min(8).default("demo-buyer-token"),

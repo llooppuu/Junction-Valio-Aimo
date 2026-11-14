@@ -66,6 +66,7 @@ In Windows PowerShell 5.1, use `curl.exe` instead of `curl`.
 | `AGENT_TOKEN`, `SCHOOL_AGENT_TOKEN`, `BUYER_TOKEN`, `WHOLESALER_TOKEN` | Demo tokens. The AI agents send their own; the Vite proxy adds the buyer's and the wholesaler's |
 | `BACKEND_PORT` | The backend's port, 3001 by default |
 | `PORT`, `FRONTEND_DIST` | Production hosting: the port the platform gives, and the built frontend the backend then serves itself |
+| `DEMO_ACCESS_KEY` | Production hosting: the secret in the demo's access link, `/login?key=…`. Only a browser that opened the link acts as the buyer |
 
 ## Deploy with Docker
 

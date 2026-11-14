@@ -760,6 +760,11 @@ export async function fetchAgentStatus(signal?: AbortSignal): Promise<AgentStatu
   return request<AgentStatus>("/api/agent", { signal: signal ?? null });
 }
 
+/** Whether this browser may use the app: a token from the dev proxy, or the hosted demo's access cookie. */
+export async function fetchSession(): Promise<{ authenticated: boolean; role: string | null; accessLink: boolean }> {
+  return request("/api/session");
+}
+
 export interface VoiceStatus {
   available: boolean;
   model: string | null;
