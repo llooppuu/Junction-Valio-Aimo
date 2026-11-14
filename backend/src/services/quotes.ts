@@ -58,8 +58,10 @@ export interface QuoteLine {
   supplier: string;
   /** What the client asked for, in its own unit. */
   requested: RequestedQuantity;
-  /** Whole packages needed to cover the request. */
+  /** Whole packages needed to cover the request, rounded up to the product's lot size. */
   packages: number;
+  /** Valio Aimo sells the product only in multiples of this many packages. */
+  lotSize: number;
   /** What the packages contain, which can be slightly more than requested. */
   quantity: Quantity;
   /** Valio Aimo's price for one sales unit without VAT when the quote was made. The quote holds it fixed. */
@@ -118,26 +120,31 @@ export function describeQuantity({ amount, unit }: Quantity): string {
   return `${amount.toLocaleString("en-GB")} ${UNIT_LABELS[unit]}`;
 }
 
-/** Converts a requested quantity to whole packages, rounding up. */
+/**
+ * Converts a requested quantity to whole packages, rounding up, and then up to
+ * the product's lot size, whatever unit the request used. The line keeps what
+ * was asked for next to what the packages contain, so any extra is visible.
+ */
 export function packagesNeeded(product: Product, requested: RequestedQuantity): number {
+  let packages: number;
   if (requested.unit === "package") {
     if (!Number.isInteger(requested.amount)) {
       throw new ApiError(422, `Package quantities must be whole numbers, got ${requested.amount}.`);
     }
-    return requested.amount;
+    packages = requested.amount;
+  } else {
+    if (requested.unit !== product.packageSize.unit) {
+      throw new ApiError(
+        422,
+        `${product.id} is sold by the ${product.packageSize.unit}, so it cannot be ordered in ${requested.unit}s. Use "${product.packageSize.unit}" or "package".`,
+      );
+    }
+    // The small tolerance stops floating-point noise from adding an extra package.
+    packages = Math.ceil(requested.amount / product.packageSize.amount - 1e-9);
   }
-
-  if (requested.unit !== product.packageSize.unit) {
-    throw new ApiError(
-      422,
-      `${product.id} is sold by the ${product.packageSize.unit}, so it cannot be ordered in ${requested.unit}s. Use "${product.packageSize.unit}" or "package".`,
-    );
-  }
-
-  // The small tolerance stops floating-point noise from adding an extra package.
-  const packages = Math.ceil(requested.amount / product.packageSize.amount - 1e-9);
   // Valio Aimo sells some products only in multiples of a lot size.
-  return Math.ceil(packages / product.lotSize - 1e-9) * product.lotSize;
+  const lotSize = Math.max(1, product.lotSize);
+  return Math.ceil(packages / lotSize - 1e-9) * lotSize;
 }
 
 export function buildLine(product: Product, requested: RequestedQuantity): QuoteLine {
@@ -165,6 +172,7 @@ export function buildLine(product: Product, requested: RequestedQuantity): Quote
     supplier: product.supplier,
     requested,
     packages,
+    lotSize: Math.max(1, product.lotSize),
     quantity: { amount: packages * product.packageSize.amount, unit: product.packageSize.unit },
     pricePerPackageEurCents: product.pricePerPackageEurCents,
     lineTotalEurCents: packages * product.pricePerPackageEurCents,
@@ -236,8 +244,17 @@ function buildQuote(store: Store, input: CreateQuoteInput, principal: Principal,
   const requirements = input.requirements ?? replaced?.requirements;
 
   const products: Product[] = [];
-  const lines = input.lines.map((line) => {
-    const productId = line.offerToken ? productFromOffer(store, line.offerToken) : line.productId!;
+  // Every line resolves to its product first, whether named by ID or by a signed offer, so the same
+  // product cannot appear twice and slip past the stock check line by line.
+  const productIds = input.lines.map((line) => (line.offerToken ? productFromOffer(store, line.offerToken) : line.productId!));
+  const repeated = productIds.filter((id, index) => productIds.indexOf(id) !== index);
+  if (repeated.length > 0) {
+    throw new ApiError(422, `Each product can appear only once in a quote, but ${[...new Set(repeated)].join(", ")} appears more than once. Combine the quantities into one line.`, {
+      productId: repeated[0],
+    });
+  }
+  const lines = input.lines.map((line, index) => {
+    const productId = productIds[index]!;
     const quantity = line.quantity;
     const product = findProduct(store, productId);
     if (!product) {
