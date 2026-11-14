@@ -35,6 +35,7 @@ This page is a demo script. Each scenario names what to do in the app, what the 
 | --- | --- |
 | Ask for more than the earned limit, for example 1,300 litres of milk after earning €1,010 | The quote waits for the buyer: the amount is above what the agent has earned |
 | Reject a quote | The agent loses its autonomy in that category and is supervised again |
+| Add a photo of a handwritten list with **Photo**, or paste a screenshot | The agent restates the list, points out anything unclear, and asks you to confirm. It has no tools in that reply, so nothing is quoted or ordered until you press **Yes, the list is correct** or send a correction |
 | Press **Cancel** while the agent is working | It stops at once and takes no further step. Anything it already did, such as a quote, is kept, the cancel is in the activity history, and the conversation carries on with the next request |
 | Revoke a category in **Earned autonomy**, or grant one | Takes effect on the agent's next quote, and is recorded |
 | Revoke the agent's mandate | The agent is refused on its next request until a new mandate is issued |

@@ -738,7 +738,7 @@ export type AgentStep =
       plan?: MenuPlan;
     };
 
-export type AgentOutcome = "awaiting_approval" | "quote_ready" | "ordered" | "needs_attention" | "answered";
+export type AgentOutcome = "awaiting_approval" | "quote_ready" | "ordered" | "needs_attention" | "answered" | "list_to_confirm";
 
 export interface AgentRun {
   id: string;
@@ -746,6 +746,8 @@ export interface AgentRun {
   model: string;
   agent: { id: string; name: string };
   request: string;
+  /** A purchasing list read from a photo, which the agent restates for the buyer to confirm. */
+  kind?: "list_photo";
   status: "running" | "completed" | "failed" | "cancelled";
   startedAt: string;
   finishedAt?: string;
@@ -814,11 +816,13 @@ export async function startAgentRun(
   conversationId: string | undefined,
   agentId: string,
   language: "en" | "fi" = "en",
+  /** "list_photo": the message is a list read from a photo, which the agent confirms with the buyer before acting. */
+  kind?: "list_photo",
 ): Promise<AgentRun> {
   const body = await request<{ run: AgentRun }>("/api/agent/runs", {
     method: "POST",
     // A follow-up keeps its conversation's agent, so only a new conversation names one. The agent replies in the buyer's language.
-    body: JSON.stringify(conversationId ? { message, conversationId, language } : { message, agentId, language }),
+    body: JSON.stringify({ message, ...(conversationId ? { conversationId } : { agentId }), language, ...(kind ? { kind } : {}) }),
   });
   return body.run;
 }

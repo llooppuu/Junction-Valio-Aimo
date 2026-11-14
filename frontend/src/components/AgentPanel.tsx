@@ -1,3 +1,4 @@
+import { ImageIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
   cancelAgentRun,
@@ -50,11 +51,20 @@ type StatusState =
 interface Suggestion {
   label: string;
   message: string;
+  /** Put the message in the box for the buyer to finish, instead of sending it. */
+  fill?: boolean;
 }
 
 /** One-click follow-ups for the step the conversation has reached. */
 function suggestionsFor(last: AgentRun | undefined, t: I18n["t"]): Suggestion[] {
   if (!last) return [];
+  // The agent restated a list read from a photo: the buyer confirms it, or corrects it in their own words.
+  if (last.status === "completed" && last.outcome === "list_to_confirm") {
+    return [
+      { label: t("agent.suggest.listCorrect"), message: t("agent.suggest.listCorrectMessage") },
+      { label: t("agent.suggest.listFix"), message: t("agent.suggest.listFixMessage"), fill: true },
+    ];
+  }
   if (last.status !== "completed" || !last.quote) return [];
   const id = last.quote.id;
   switch (last.outcome) {
@@ -94,6 +104,8 @@ export function AgentPanel({ launch = null, onLaunched, agentId, agentName, onAc
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The photos sent this session, by run, to show in the thread. They stay in the browser.
+  const [photos, setPhotos] = useState<Record<string, string>>({});
   const onActivityRef = useRef(onActivity);
   onActivityRef.current = onActivity;
   const threadRef = useRef<HTMLDivElement>(null);
@@ -175,17 +187,19 @@ export function AgentPanel({ launch = null, onLaunched, agentId, agentName, onAc
     };
   }, [activeRunId]);
 
-  async function send(text: string) {
+  async function send(text: string, photo?: string) {
     const trimmed = text.trim();
     if (!trimmed || busy) return;
     setSending(true);
     setError(null);
     try {
-      const run = await startAgentRun(trimmed, last?.conversationId, agentId, language);
+      const run = await startAgentRun(trimmed, last?.conversationId, agentId, language, photo ? "list_photo" : undefined);
       // A new request always jumps to the bottom of the thread.
       followRef.current = true;
       setRuns((current) => [...current, run]);
-      setMessage("");
+      // A photo leaves whatever the buyer was typing in the box.
+      if (photo) setPhotos((current) => ({ ...current, [run.id]: photo }));
+      else setMessage("");
       onActivityRef.current();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t("agent.sendFailed"));
@@ -285,7 +299,7 @@ export function AgentPanel({ launch = null, onLaunched, agentId, agentName, onAc
               <ol className="agent-runs">
                 {runs.map((run) => (
                   <li key={run.id}>
-                    <RunView run={run} latest={run.id === last?.id} onReviewApprovals={onReviewApprovals} />
+                    <RunView run={run} latest={run.id === last?.id} onReviewApprovals={onReviewApprovals} photo={photos[run.id]} />
                   </li>
                 ))}
               </ol>
@@ -308,7 +322,11 @@ export function AgentPanel({ launch = null, onLaunched, agentId, agentName, onAc
                 key={suggestion.message}
                 type="button"
                 className="agent-suggestion"
-                onClick={() => void send(suggestion.message)}
+                onClick={() => {
+                  if (!suggestion.fill) return void send(suggestion.message);
+                  setMessage(suggestion.message);
+                  inputRef.current?.focus();
+                }}
               >
                 {suggestion.label}
               </button>
@@ -328,7 +346,7 @@ export function AgentPanel({ launch = null, onLaunched, agentId, agentName, onAc
           inputActions={
             agent.status === "on" && (
               <>
-                <ListPhotoInput draft={message} onDraft={setMessage} onDone={() => inputRef.current?.focus()} disabled={busy} />
+                <ListPhotoInput onRead={(text, thumbnail) => void send(text, thumbnail)} disabled={busy} />
                 <VoiceInput
                   draft={message}
                   onDraft={setMessage}
@@ -357,16 +375,27 @@ function StepList({ steps }: { steps: AgentStep[] }) {
 }
 
 /** One request and the agent's work. Completed runs fold their steps away so the thread stays short. */
-function RunView({ run, latest, onReviewApprovals }: { run: AgentRun; latest: boolean; onReviewApprovals?: () => void }) {
+function RunView({ run, latest, onReviewApprovals, photo }: { run: AgentRun; latest: boolean; onReviewApprovals?: () => void; photo?: string | undefined }) {
   const { t, tn } = useI18n();
   const calls = run.steps.filter((step) => step.kind === "tool_call");
   const refused = calls.filter((step) => step.kind === "tool_call" && !step.ok).length;
   return (
     <article className="agent-run" aria-label={t("agent.runLabel", { id: run.id })}>
-      <p className="agent-request">
-        <span className="agent-role">{t("agent.you")}</span>
-        {run.request}
-      </p>
+      {run.kind === "list_photo" ? (
+        <div className="agent-request agent-request-photo">
+          <span className="agent-role">{t("agent.you")}</span>
+          <span className="agent-photo-label">
+            <ImageIcon size={16} aria-hidden="true" /> {t("agent.photoLabel")}
+          </span>
+          {photo && <img className="agent-photo" src={photo} alt={t("agent.photoAlt")} />}
+          <span className="agent-photo-text">{run.request}</span>
+        </div>
+      ) : (
+        <p className="agent-request">
+          <span className="agent-role">{t("agent.you")}</span>
+          {run.request}
+        </p>
+      )}
 
       <div className="agent-work">
         <p className="agent-role agent-role-agent">

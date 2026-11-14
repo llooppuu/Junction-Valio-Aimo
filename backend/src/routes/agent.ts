@@ -14,6 +14,8 @@ export const startRunSchema = z.strictObject({
   agentId: z.string().min(1).optional(),
   /** The language the buyer reads, so the agent replies in it. English by default. */
   language: z.enum(["en", "fi"]).optional(),
+  /** "list_photo": the message is a list read from a photo. The agent restates it and asks the buyer to confirm before acting. */
+  kind: z.enum(["request", "list_photo"]).optional(),
 });
 
 const NOT_CONFIGURED =
