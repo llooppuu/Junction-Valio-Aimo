@@ -41,13 +41,35 @@ Set these as environment variables on the platform. Never bake them into the ima
 
 `GET /api/health` answers `200` when the server is up. The image has a Docker health check that uses it, with a start period long enough for a first-start catalog build.
 
+## Check it before the demo
+
+`npm run smoke` checks a running app from your own machine, and only reads, so the demo's state is untouched:
+
+```bash
+npm run smoke -- https://your-app.example.com
+```
+
+```text
+ok   Service is up                      HTTP 200
+ok   OpenAPI contract                   OpenAPI 3.1.0, 52 operations
+ok   Offer signing key (JWKS)           OKP/Ed25519
+ok   Catalog search                     "maito" finds Valio skimmed milk 1 l lactose free UHT, priced live
+ok   Search by meaning                  top: Valio cooking cream alternative 15 % 1 l lactose free
+ok   Live offers from Valio Aimo        10 offers, cheapest €1.01/l
+ok   Offer signature verifies           valid EdDSA signature
+ok   MCP over HTTP                      16 tools
+ok   AI agent                           on, gpt-5.5
+off  Voice input                        off (no GEMINI_API_KEY)
+```
+
+A `FAIL` line exits with an error. `off` marks an optional feature whose key is not set; search by meaning is also `off` until the container has built its index. If the app uses its own demo tokens, set `AGENT_TOKEN` and `BUYER_TOKEN` before running the check.
+
 ## Before exposing it publicly
 
 - **The browser app acts as the buyer.** In production, the server adds the buyer's token to browser requests without a token of their own (and the wholesaler's under `/api/wholesaler`), as the development proxy does. Anyone who can open the app can act as the head chef. For a public demo that is intended; for real use, put the app behind the buyer organization's sign-in.
-- **The microphone needs HTTPS.** Browsers allow microphone access only on `https://` pages and on `localhost`. Most platforms serve HTTPS already; behind your own proxy, terminate TLS there.
 - **Agents keep their own tokens.** A request that brings its own bearer token keeps it, so an external agent is always treated as an agent.
-- **Keys stay on the server.** The Valio Aimo and OpenAI keys are read only by the backend and never sent to a browser or an agent.
-- **Serve over HTTPS.** Platforms terminate TLS in front of the container; a virtual machine needs a reverse proxy that does.
+- **Keys stay on the server.** The Valio Aimo, OpenAI, and Gemini keys are read only by the backend and never sent to a browser or an agent. For voice input the browser gets a single-use Gemini token that opens one session.
+- **Serve over HTTPS.** Platforms terminate TLS in front of the container; a virtual machine needs a reverse proxy that does. Browsers also allow the microphone only on `https://` pages and on `localhost`.
 - **State resets on restart.** Quotes, orders, and the audit history are in memory, so a restart starts the demo over. See [the path to production](standards-and-production.md#path-to-production).
 
 ## Without Docker

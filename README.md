@@ -46,6 +46,7 @@ In Windows PowerShell 5.1, use `curl.exe` instead of `curl`.
 | `npm run data` | Builds the catalog from Valio Aimo's product, reliability, and carbon files |
 | `npm run embeddings` | Builds the index for search by meaning (needs `OPENAI_API_KEY` and the catalog; about a minute) |
 | `npm run mcp` | Starts the MCP server over stdio for a local MCP client, using the running API |
+| `npm run smoke -- <url>` | Checks a running app before a demo: health, contract, live Valio Aimo offers, signatures, MCP, and which optional features are on. Read-only |
 | `npm test` | Runs the backend tests on recorded Valio Aimo answers, without calling the APIs |
 | `npm run test:adversarial` | Runs only the attacks by adversarial agents |
 | `npm run record-fixture --workspace backend` | Records a fresh test fixture from the live APIs |

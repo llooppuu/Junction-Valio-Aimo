@@ -14,7 +14,8 @@
     "record-fixture": "node --import tsx scripts/record-fixture.ts",
     "find-products": "node --import tsx scripts/find-products.ts",
     "mcp": "tsx src/mcp/stdio.ts",
-    "embeddings": "node --import tsx scripts/build-embeddings.ts"
+    "embeddings": "node --import tsx scripts/build-embeddings.ts",
+    "smoke": "node --import tsx scripts/smoke.ts"
   },
   "dependencies": {
     "@google/genai": "2.32.0",
