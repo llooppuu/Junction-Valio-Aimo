@@ -18,7 +18,7 @@ export const readListSchema = z.strictObject({
   language: z.enum(["en", "fi"]).optional(),
 });
 
-const NOT_CONFIGURED = "Reading lists from photos needs OPENAI_API_KEY. Type the request instead.";
+const NOT_CONFIGURED = "Reading lists from photos needs GEMINI_API_KEY or OPENAI_API_KEY. Type the request instead.";
 
 /** Turns a photo of a purchasing list into a request for the buyer to check and send. */
 export function intakeRouter(store: Store, reader: ListReader | null) {

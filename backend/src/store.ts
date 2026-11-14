@@ -17,7 +17,7 @@ import { productCategorySchema } from "./schemas/product.js";
 import { buyerDid, issueMandate, type Mandate } from "./services/mandates.js";
 import type { AutonomySettings } from "./services/autonomy.js";
 import { seededTrackRecords } from "./data/trackRecord.js";
-import { createQueryEmbedder, loadIndex, openAiEmbedder, type Embedder, type SemanticIndex } from "./services/semantic.js";
+import { createQueryEmbedder, geminiEmbedder, isGeminiIndex, loadIndex, openAiEmbedder, type Embedder, type SemanticIndex } from "./services/semantic.js";
 
 /** The demo agent's limit: €1,400.00, so €1,390.00 passes and €1,454.00 needs approval. */
 export const DEMO_SPENDING_LIMIT_EUR_CENTS = 140000;
@@ -42,7 +42,7 @@ export interface StoreOptions {
   autonomy?: AutonomySettings["mode"];
   /** The semantic index. Defaults to the one built by `npm run embeddings`, loaded on first use. Null switches it off. */
   semanticIndex?: SemanticIndex | null;
-  /** Embeds search queries. Defaults to OpenAI when OPENAI_API_KEY is set. */
+  /** Embeds search queries. Defaults to the provider the index was built with, OpenAI or Gemini, when its key is set. */
   embedder?: Embedder | null;
 }
 
@@ -150,14 +150,26 @@ export function createStore(options: StoreOptions = {}) {
 let sharedIndex: SemanticIndex | null | undefined;
 /** The semantic index, loaded once per process on first use, and the query embedder. */
 function semanticSearch(options: StoreOptions) {
-  const embedder = options.embedder === undefined ? (config.OPENAI_API_KEY ? openAiEmbedder(config.OPENAI_API_KEY) : null) : options.embedder;
+  const index = (): SemanticIndex | undefined => {
+    if (options.semanticIndex !== undefined) return options.semanticIndex ?? undefined;
+    if (sharedIndex === undefined) sharedIndex = loadIndex() ?? null;
+    return sharedIndex ?? undefined;
+  };
+  if (options.embedder !== undefined) {
+    return { index, embedQuery: options.embedder ? createQueryEmbedder(options.embedder) : undefined };
+  }
+  // A query must be embedded with the same model as the index, so the embedder follows the index.
+  const openAi = config.OPENAI_API_KEY ? createQueryEmbedder(openAiEmbedder(config.OPENAI_API_KEY)) : undefined;
+  const gemini = config.GEMINI_API_KEY ? createQueryEmbedder(geminiEmbedder(config.GEMINI_API_KEY, "query")) : undefined;
+  if (!openAi && !gemini) return { index, embedQuery: undefined };
   return {
-    index: (): SemanticIndex | undefined => {
-      if (options.semanticIndex !== undefined) return options.semanticIndex ?? undefined;
-      if (sharedIndex === undefined) sharedIndex = loadIndex() ?? null;
-      return sharedIndex ?? undefined;
+    index,
+    embedQuery: async (text: string) => {
+      const built = index();
+      const embed = built && isGeminiIndex(built) ? gemini : openAi;
+      if (!embed) throw new Error(`the index was built with ${built?.model ?? "another model"}, whose API key is not set. Rebuild it with npm run embeddings`);
+      return embed(text);
     },
-    embedQuery: embedder ? createQueryEmbedder(embedder) : undefined,
   };
 }
 

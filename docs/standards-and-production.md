@@ -64,7 +64,7 @@ The agent's 16 tools are thin wrappers over the public endpoints, described with
 | Express 5 and Zod 4 | Small, widely known, and the schemas produce both validation and the OpenAPI document. |
 | Node's built-in crypto for Ed25519 | No third-party signing library to trust. |
 | React 19 and Vite | A fast buyer interface; the dev proxy keeps tokens out of the browser bundle. |
-| OpenAI GPT-5.5 with tool use | The agent reasons over a plain-language request and calls the public API; any tool-using model can replace it. |
+| Gemini or OpenAI GPT-5.5 with tool use | The agent reasons over a plain-language request and calls the public API. Both providers sit behind one small interface (`backend/src/agent/model.ts`), so any tool-using model can replace them; `AI_PROVIDER` switches between the two. |
 | Gemini Live with ephemeral tokens | Speech to text for the buyer's requests, in English and Finnish. The browser never holds the API key, each token opens one session within a minute, and the session's settings are fixed in the token. Speech goes to Google only while the buyer holds the microphone on. |
 | Node's test runner on recorded answers | Fast tests that never call the live APIs, with scenarios and adversarial attacks as executable proof. |
 | One Docker container | Runs on any host; see [Deployment](deployment.md). |

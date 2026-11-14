@@ -42,9 +42,10 @@ Set these as environment variables on the platform. Never bake them into the ima
 | `VALIO_API_KEY` | Yes | Valio Aimo's price and availability APIs, and building the catalog |
 | `VALIO_API_URL` | No | `https://junction26.valioaimo.fi` by default |
 | `DATABASE_URL` | No | MariaDB, `mariadb://user:password@host:3306/database`. Without it, the state lives in memory and a restart starts over |
-| `OPENAI_API_KEY` | For the AI agent | Without it the agent is off and everything else still works |
-| `OPENAI_MODEL`, `OPENAI_REASONING_EFFORT` | No | `gpt-5.5` and `low` by default |
-| `GEMINI_API_KEY` | For voice input | Without it the microphone button is hidden and typing works as before |
+| `GEMINI_API_KEY` | For the AI agent and voice input | Runs the agent, reads list photos, embeds search queries, and transcribes speech. Without it (or an OpenAI key) the agent is off and everything else still works |
+| `GEMINI_MODEL`, `GEMINI_REASONING_EFFORT` | No | `gemini-3.8-flash` and `low` by default |
+| `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_REASONING_EFFORT` | No | Or OpenAI for the agent, photos, and search; `gpt-5.5` by default |
+| `AI_PROVIDER` | No | `gemini` or `openai`, when both keys are set. Without it, OpenAI is used when its key is set |
 | `GEMINI_LIVE_MODEL` | No | `gemini-3.5-transcribe-live` by default; any Gemini Live model works |
 | `AGENT_TOKEN`, `SCHOOL_AGENT_TOKEN`, `BUYER_TOKEN`, `WHOLESALER_TOKEN` | Yes, when exposed | Set your own values of at least 8 characters before the app is reachable from the internet |
 | `PORT` | Set by the image | The port to listen on; platforms usually set it |

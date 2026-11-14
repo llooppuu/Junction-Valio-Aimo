@@ -6,7 +6,6 @@ import express, {
 } from "express";
 import { ValioRateLimitedError, ValioUnavailableError } from "./services/valio.js";
 import type { AgentModel } from "./agent/model.js";
-import { createOpenAiModel } from "./agent/openai-model.js";
 import { config } from "./config.js";
 import { ApiError } from "./http.js";
 import { agentRouter } from "./routes/agent.js";
@@ -18,7 +17,8 @@ import { autonomyRouter } from "./routes/autonomy.js";
 import { mcpRouter } from "./routes/mcp.js";
 import { voiceRouter } from "./routes/voice.js";
 import { intakeRouter } from "./routes/intake.js";
-import { openAiListReader, type ListReader } from "./services/listReader.js";
+import type { ListReader } from "./services/listReader.js";
+import { defaultAgentModel, defaultListReader } from "./ai.js";
 import { geminiVoiceTokens, type VoiceTokens } from "./services/voice.js";
 import { allergensRouter } from "./routes/allergens.js";
 import { auditRouter } from "./routes/audit.js";
@@ -42,7 +42,7 @@ import { createStore, type Store } from "./store.js";
 export interface AppOptions {
   store?: Store;
   /**
-   * The AI agent's model. By default it is GPT from the OpenAI settings in
+   * The AI agent's model. By default GPT or Gemini, from the AI settings in
    * .env, or null (agent switched off) when no API key is set.
    */
   agentModel?: AgentModel | null;
@@ -55,22 +55,10 @@ export interface AppOptions {
   demoAccessKey?: string;
   /** Voice input's Gemini Live sessions. By default from GEMINI_API_KEY, or null (voice off) without one. */
   voiceTokens?: VoiceTokens | null;
-  /** Reads photos of purchasing lists. By default GPT from the OpenAI settings, or null without a key. */
+  /** Reads photos of purchasing lists. By default GPT or Gemini from the AI settings, or null without a key. */
   listReader?: ListReader | null;
 }
 
-function defaultAgentModel(): AgentModel | null {
-  if (!config.OPENAI_API_KEY) return null;
-  return createOpenAiModel({
-    apiKey: config.OPENAI_API_KEY,
-    model: config.OPENAI_MODEL,
-    reasoningEffort: config.OPENAI_REASONING_EFFORT,
-  });
-}
-
-function defaultListReader(): ListReader | null {
-  return config.OPENAI_API_KEY ? openAiListReader(config.OPENAI_API_KEY, config.OPENAI_MODEL) : null;
-}
 
 function defaultVoiceTokens(): VoiceTokens | null {
   return config.GEMINI_API_KEY ? geminiVoiceTokens(config.GEMINI_API_KEY, config.GEMINI_LIVE_MODEL) : null;

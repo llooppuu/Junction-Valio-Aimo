@@ -1,3 +1,4 @@
+import { GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
 
 /**
@@ -28,6 +29,24 @@ Reply with the request text only.`;
 }
 
 export const NOT_A_LIST = "NOT_A_LIST";
+
+/** Reads the list with Gemini. */
+export function geminiListReader(apiKey: string, model: string): ListReader {
+  const ai = new GoogleGenAI({ apiKey });
+  return {
+    model,
+    async read(image, language) {
+      const [header, data] = image.dataUrl.split(",", 2);
+      const mimeType = /^data:([^;]+);base64$/.exec(header ?? "")?.[1] ?? "image/jpeg";
+      const response = await ai.models.generateContent({
+        model,
+        contents: [{ role: "user", parts: [{ text: "Read this purchasing list." }, { inlineData: { mimeType, data: data ?? "" } }] }],
+        config: { systemInstruction: listReaderInstructions(language) },
+      });
+      return (response.text ?? "").trim();
+    },
+  };
+}
 
 export function openAiListReader(apiKey: string, model: string): ListReader {
   const client = new OpenAI({ apiKey, maxRetries: 1, timeout: 60_000 });

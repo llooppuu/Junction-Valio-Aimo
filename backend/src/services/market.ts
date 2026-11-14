@@ -273,7 +273,7 @@ export async function searchEntries(
   if (query.search === "semantic" && query.q) {
     const index = store.semantic.index();
     if (!index) return { entries: searchCatalog(store.catalog.entries, query, limit), mode: "keyword", fallbackReason: "the semantic index has not been built (npm run embeddings)" };
-    if (!store.semantic.embedQuery) return { entries: searchCatalog(store.catalog.entries, query, limit), mode: "keyword", fallbackReason: "OPENAI_API_KEY is not set, so the query cannot be embedded" };
+    if (!store.semantic.embedQuery) return { entries: searchCatalog(store.catalog.entries, query, limit), mode: "keyword", fallbackReason: "no AI key is set (GEMINI_API_KEY or OPENAI_API_KEY), so the query cannot be embedded" };
     try {
       const vector = await store.semantic.embedQuery(query.q);
       const candidates = store.catalog.entries.filter((entry) => passesStaticFilters(entry, query));

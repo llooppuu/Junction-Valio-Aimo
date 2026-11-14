@@ -45,6 +45,14 @@ const envSchema = z.object({
     .transform((value) => value || undefined),
   OPENAI_MODEL: z.string().min(1).default("gpt-5.5"),
   OPENAI_REASONING_EFFORT: z.enum(["minimal", "low", "medium", "high"]).default("low"),
+  // Or Gemini, with GEMINI_API_KEY (the same key voice input uses). AI_PROVIDER picks one when both
+  // keys are set; without it, OpenAI is used when its key is set, and Gemini otherwise.
+  AI_PROVIDER: z
+    .enum(["openai", "gemini"])
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+  GEMINI_MODEL: z.string().min(1).default("gemini-3.8-flash"),
+  GEMINI_REASONING_EFFORT: z.enum(["minimal", "low", "medium", "high"]).default("low"),
   // Valio Aimo's mock price and availability APIs. The key is read only here, on the server.
   // Without it the catalog can still be searched, but nothing can be priced, quoted, or ordered.
   VALIO_API_KEY: z

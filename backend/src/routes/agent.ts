@@ -19,7 +19,7 @@ export const startRunSchema = z.strictObject({
 });
 
 const NOT_CONFIGURED =
-  "The AI agent is not configured. Set OPENAI_API_KEY in .env and restart the backend. Everything else works without it.";
+  "The AI agent is not configured. Set GEMINI_API_KEY or OPENAI_API_KEY in .env and restart the backend. Everything else works without it.";
 
 /**
  * Lets the buyer hand a request to the AI agent. The agent then acts through
