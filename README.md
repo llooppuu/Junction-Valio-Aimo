@@ -108,6 +108,6 @@ package.json     npm workspaces and the root commands
 
 ## Documentation
 
-[docs/](docs/README.md) explains the [architecture](docs/architecture.md), the [API](docs/api.md), [MCP clients](docs/mcp.md), [trust and controls](docs/trust-and-controls.md), the [Valio Aimo integration](docs/valio-integration.md), [demo scenarios](docs/scenarios.md), [standards and the path to production](docs/standards-and-production.md), and [deployment](docs/deployment.md). The full API contract is at `/api/openapi.json`.
+[docs/](docs/README.md) explains the [architecture](docs/architecture.md), the [API](docs/api.md), [MCP clients](docs/mcp.md), [trust and controls](docs/trust-and-controls.md), the [Valio Aimo integration](docs/valio-integration.md), [demo scenarios](docs/scenarios.md), the [pitch and live demo](docs/pitch.md), [standards and the path to production](docs/standards-and-production.md), and [deployment](docs/deployment.md). The full API contract is at `/api/openapi.json`.
 
 The product data is the organizers' and may be used only within Junction 2026.
