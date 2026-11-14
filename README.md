@@ -59,6 +59,7 @@ In Windows PowerShell 5.1, use `curl.exe` instead of `curl`.
 | --- | --- |
 | `VALIO_API_KEY` | Valio Aimo's mock APIs. Without it the catalog can be searched, but nothing can be priced, quoted, or ordered |
 | `VALIO_API_URL` | The APIs' address, `https://junction26.valioaimo.fi` by default |
+| `DATABASE_URL` | MariaDB, for example `mariadb://tta:password@localhost:3306/tta`. Quotes, orders, mandates, earned autonomy, agent runs, and the audit history then survive restarts. Without it, they live in memory |
 | `OPENAI_API_KEY` | Turns on the AI agent. The key stays on the server |
 | `OPENAI_MODEL`, `OPENAI_REASONING_EFFORT` | `gpt-5.5` and `low` by default |
 | `GEMINI_API_KEY` | Turns on voice input in the agent workspace. The key stays on the server; the browser gets a single-use token per request |
@@ -80,7 +81,13 @@ docker build --secret id=valio_api_key,env=VALIO_API_KEY -t trusted-trade-agents
 docker run --env-file .env -p 8080:8080 trusted-trade-agents
 ```
 
-The app is then at <http://localhost:8080>. Without the build secret, the container builds the catalog on its first start from `VALIO_API_KEY`, which needs about 1 GB of memory. The browser app acts as the buyer, so set your own values for the demo tokens before you expose it.
+The app is then at <http://localhost:8080/login?key=YOUR_DEMO_ACCESS_KEY>, the demo's access link. Without the build secret, the container builds the catalog on its first start from `VALIO_API_KEY`, which needs about 1 GB of memory. Set your own values for the demo tokens before you expose it.
+
+With MariaDB, so the state survives restarts, one command starts both:
+
+```bash
+docker compose up --build
+```
 
 ## Project structure
 
@@ -94,6 +101,7 @@ frontend/        React + Vite buyer and wholesaler app
 .env.example     Configuration template, copy it to .env
 docs/            How it works, the API, trust and controls, scenarios, deployment
 Dockerfile       One container for the API and the frontend
+docker-compose.yml  The container with a MariaDB database next to it
 package.json     npm workspaces and the root commands
 ```
 

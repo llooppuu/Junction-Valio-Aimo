@@ -16,6 +16,8 @@ RUN npm ci
 COPY backend backend
 COPY frontend frontend
 RUN npm run build
+# Where the catalog and search index are built. Created here so it belongs to the app user, also as a mounted volume.
+RUN mkdir -p backend/data
 
 # Optional: build Valio Aimo's catalog into the image, so the container starts with it.
 # Pass the API key as a BuildKit secret, which never ends up in an image layer:

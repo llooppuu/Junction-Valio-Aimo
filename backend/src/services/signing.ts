@@ -1,4 +1,4 @@
-import { createHash, generateKeyPairSync, sign, verify, type KeyObject } from "node:crypto";
+import { createHash, createPrivateKey, createPublicKey, generateKeyPairSync, sign, verify, type KeyObject } from "node:crypto";
 
 /**
  * Signed offers: the server signs what it claims about a product or a quote as
@@ -36,6 +36,10 @@ const base64url = (input: Buffer | string) => Buffer.from(input).toString("base6
 
 function createKeys() {
   const { publicKey, privateKey } = generateKeyPairSync("ed25519");
+  return keysFrom(publicKey, privateKey);
+}
+
+function keysFrom(publicKey: KeyObject, privateKey: KeyObject) {
   const jwk = publicKey.export({ format: "jwk" }) as { kty: string; crv: string; x: string };
   // RFC 7638 thumbprint: the required members in lexicographic order.
   const kid = base64url(createHash("sha256").update(JSON.stringify({ crv: jwk.crv, kty: jwk.kty, x: jwk.x })).digest());
@@ -44,6 +48,17 @@ function createKeys() {
 
 let keys: { publicKey: KeyObject; privateKey: KeyObject; kid: string; jwk: Record<string, string> } | undefined;
 const currentKeys = () => (keys ??= createKeys());
+
+/** The offer-signing key as PKCS #8 PEM, so a restart with saved state keeps verifying the offers it signed. */
+export function exportSigningKey(): string {
+  return currentKeys().privateKey.export({ format: "pem", type: "pkcs8" }).toString();
+}
+
+/** Signs with a saved key from now on. */
+export function importSigningKey(pem: string) {
+  const privateKey = createPrivateKey(pem);
+  keys = keysFrom(createPublicKey(privateKey), privateKey);
+}
 
 /** The public JWK Set for /.well-known/jwks.json. */
 export function jwks() {

@@ -53,6 +53,13 @@ const envSchema = z.object({
     .optional()
     .transform((value) => value || undefined),
   VALIO_API_URL: z.url().default("https://junction26.valioaimo.fi"),
+  // Where the state is saved between restarts, for example mariadb://tta:password@localhost:3306/tta.
+  // Without it, quotes, orders, and the audit history live in memory and a restart starts over.
+  DATABASE_URL: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => value || undefined),
   // Voice input in the agent workspace, through Gemini Live. Without a key the microphone button is
   // hidden and typing works as before. The key stays on the server; browsers get single-use tokens.
   GEMINI_API_KEY: z

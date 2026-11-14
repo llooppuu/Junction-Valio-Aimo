@@ -91,4 +91,4 @@ sequenceDiagram
 
 **Everything is explainable, in two languages.** Each decision carries the rules checked, the alternatives not chosen, and why. The server writes each sentence in English and Finnish, so the buyer reads the reason in their own language.
 
-**State is in memory.** Quotes, orders, and the audit history live in memory and reset with the demo. The data model is persistence-ready; see [the path to production](standards-and-production.md#path-to-production).
+**State is held in memory and saved to MariaDB.** The services work on in-memory records, and with `DATABASE_URL` the whole state is saved to MariaDB whenever it changes and restored on start (`backend/src/persistence/`), with every audit entry also appended to its own table. See [Deployment](deployment.md#with-mariadb).

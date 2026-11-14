@@ -1,4 +1,4 @@
-import { generateKeyPairSync, sign, verify, createPublicKey, type KeyObject } from "node:crypto";
+import { createPrivateKey, generateKeyPairSync, sign, verify, createPublicKey, type KeyObject } from "node:crypto";
 import type { ProductCategory } from "../schemas/product.js";
 
 /**
@@ -94,6 +94,10 @@ export function publicKeyFromDid(did: string): KeyObject | undefined {
 
 function createBuyerKeys() {
   const { publicKey, privateKey } = generateKeyPairSync("ed25519");
+  return buyerKeysFrom(publicKey, privateKey);
+}
+
+function buyerKeysFrom(publicKey: KeyObject, privateKey: KeyObject) {
   const raw = Buffer.from((publicKey.export({ format: "jwk" }) as { x: string }).x, "base64url");
   const did = `did:key:z${base58encode(Uint8Array.from([...ED25519_PUB, ...raw]))}`;
   return { privateKey, did };
@@ -101,6 +105,17 @@ function createBuyerKeys() {
 
 let buyerKeys: ReturnType<typeof createBuyerKeys> | undefined;
 const currentBuyerKeys = () => (buyerKeys ??= createBuyerKeys());
+
+/** The buyer's signing key as PKCS #8 PEM, so saved mandates still verify after a restart. */
+export function exportBuyerKey(): string {
+  return currentBuyerKeys().privateKey.export({ format: "pem", type: "pkcs8" }).toString();
+}
+
+/** Issues mandates with a saved key from now on; the buyer's DID follows from it. */
+export function importBuyerKey(pem: string) {
+  const privateKey = createPrivateKey(pem);
+  buyerKeys = buyerKeysFrom(createPublicKey(privateKey), privateKey);
+}
 
 /** The buyer's issuer DID, which carries its public key. */
 export function buyerDid(): string {

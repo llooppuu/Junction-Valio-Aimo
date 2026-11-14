@@ -21,6 +21,18 @@ docker run --env-file .env -p 8080:8080 trusted-trade-agents
 
 Open <http://localhost:8080/login?key=YOUR_DEMO_ACCESS_KEY>. The image sets `PORT=8080` and `FRONTEND_DIST`; most platforms set `PORT` themselves, and the server listens on it.
 
+## With MariaDB
+
+`docker compose up --build` starts the app and a MariaDB database next to it, with `DATABASE_URL` set between them ([docker-compose.yml](../docker-compose.yml)). On a platform, run any MariaDB (or a managed one) and set `DATABASE_URL` on the app.
+
+With a database, the app saves its state whenever it changes and restores it on start: quotes, orders, mandates, earned autonomy, agent runs and conversations, plans, alerts, suggestions, and the counters that number them, together with the signing keys, so offers and mandates signed before a restart still verify. Every audit entry is also appended to its own `tta_audit` table, which keeps the history across demo resets and can be read with plain SQL:
+
+```bash
+docker compose exec mariadb mariadb -utta -p tta -e "SELECT at, action, quote_id, summary FROM tta_audit ORDER BY seq DESC LIMIT 10"
+```
+
+An agent run that a restart cut off is marked failed, and its conversation carries on with the next request.
+
 ## Configuration
 
 Set these as environment variables on the platform. Never bake them into the image.
@@ -29,6 +41,7 @@ Set these as environment variables on the platform. Never bake them into the ima
 | --- | --- | --- |
 | `VALIO_API_KEY` | Yes | Valio Aimo's price and availability APIs, and building the catalog |
 | `VALIO_API_URL` | No | `https://junction26.valioaimo.fi` by default |
+| `DATABASE_URL` | No | MariaDB, `mariadb://user:password@host:3306/database`. Without it, the state lives in memory and a restart starts over |
 | `OPENAI_API_KEY` | For the AI agent | Without it the agent is off and everything else still works |
 | `OPENAI_MODEL`, `OPENAI_REASONING_EFFORT` | No | `gpt-5.5` and `low` by default |
 | `GEMINI_API_KEY` | For voice input | Without it the microphone button is hidden and typing works as before |
@@ -71,7 +84,7 @@ A `FAIL` line exits with an error. `off` marks an optional feature whose key is 
 - **Agents keep their own tokens.** A request that brings its own bearer token keeps it, so an external agent is always treated as an agent.
 - **Keys stay on the server.** The Valio Aimo, OpenAI, and Gemini keys are read only by the backend and never sent to a browser or an agent. For voice input the browser gets a single-use Gemini token that opens one session.
 - **Serve over HTTPS.** Platforms terminate TLS in front of the container; a virtual machine needs a reverse proxy that does. Browsers also allow the microphone only on `https://` pages and on `localhost`.
-- **State resets on restart.** Quotes, orders, and the audit history are in memory, so a restart starts the demo over. See [the path to production](standards-and-production.md#path-to-production).
+- **Keep the state.** Set `DATABASE_URL` so quotes, orders, and the audit history survive restarts; without it, a restart starts the demo over. The database holds the signing keys too, so restrict who can reach it.
 
 ## Without Docker
 

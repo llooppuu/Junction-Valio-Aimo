@@ -37,15 +37,15 @@ The agent's 16 tools are thin wrappers over the public endpoints, described with
 
 ## What the prototype leaves out
 
-- **State is in memory.** Quotes, orders, the audit history, and track records reset when the server restarts.
-- **Signing keys are created at start-up.** Offers signed before a restart no longer verify after it.
+- **State is saved as one snapshot.** With `DATABASE_URL`, the whole state is saved to MariaDB as a JSON document, with the audit history also in its own append-only table. Without it, everything is in memory. One server process owns the state, so the app does not scale out to several instances yet.
+- **Signing keys are kept in the database** with the state, so offers and mandates survive a restart, but the keys are not in a key management service.
 - **Tokens are demo tokens** set in configuration, and the browser app acts as the buyer.
 - **One buyer organization with two kitchens**, and one wholesaler.
 - **No order is sent to Valio Aimo**, as its mock environment has no order API; each order can be downloaded as a PEPPOL BIS Order document instead.
 
 ## Path to production
 
-1. **Persistence and a tamper-evident history.** Store quotes, orders, and track records in PostgreSQL. Make the audit history append-only at the database level and chain each entry's hash to the previous one, so any edit is detectable.
+1. **Relational tables and a tamper-evident history.** Move from the MariaDB snapshot to a table per record type, so several server instances can share the state. Revoke UPDATE and DELETE on `tta_audit` for the app's database user, and chain each entry's hash to the previous one, so any edit is detectable.
 2. **Real identities for agents and people.** Agents authenticate with OAuth 2.0 client credentials and sender-constrained tokens (DPoP or mutual TLS); people sign in with the buyer organization's identity provider (OpenID Connect).
 3. **Key management.** Keep the signing keys in a key management service, rotate them, and keep old public keys in the JWK Set until their offers expire.
 4. **Mandate revocation others can check.** Publish revocations in a W3C Bitstring Status List, so a supplier or another agent can see that a mandate was revoked without asking this server.
