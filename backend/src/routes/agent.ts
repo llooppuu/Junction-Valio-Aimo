@@ -2,7 +2,7 @@ import { Router } from "express";
 import { helsinkiDate } from "../services/dates.js";
 import { z } from "zod";
 import type { AgentModel } from "../agent/model.js";
-import { startAgentRun, type AgentRun } from "../agent/runner.js";
+import { cancelAgentRun, startAgentRun, type AgentRun } from "../agent/runner.js";
 import { currentPrincipal, requireRole } from "../auth.js";
 import { ApiError, parseOr400 } from "../http.js";
 import type { Store } from "../store.js";
@@ -72,6 +72,15 @@ export function agentRouter(store: Store, model: AgentModel | null) {
   router.get("/runs/:id", buyerOnly, (req, res) => {
     const run = store.agent.runs.get(String(req.params.id));
     if (!run) throw new ApiError(404, `Unknown agent run "${String(req.params.id)}".`);
+    res.json({ run });
+  });
+
+  // The buyer changed their mind while the agent was working.
+  router.post("/runs/:id/cancel", buyerOnly, (req, res) => {
+    const id = String(req.params.id);
+    const run = store.agent.runs.get(id);
+    if (!run) throw new ApiError(404, `Unknown agent run "${id}".`);
+    if (!cancelAgentRun(store.agent, id)) throw new ApiError(409, `Agent run ${id} has already finished (${run.status}).`);
     res.json({ run });
   });
 

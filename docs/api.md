@@ -166,6 +166,7 @@ Valio Aimo's mock environment has no order API, so an order is recorded here, an
 | | `GET /api/agent` | agent, buyer | Whether the AI agent is on, and its model |
 | | `POST /api/agent/runs` | buyer | Hand a request to a kitchen's AI agent |
 | | `GET /api/agent/runs`, `GET /api/agent/runs/{id}` | buyer | Runs and every API call each made |
+| | `POST /api/agent/runs/{id}/cancel` | buyer | Cancel a run in progress; anything it already did is kept |
 | | `GET /api/voice` | buyer | Whether voice input is on, and its Gemini Live model |
 | | `POST /api/voice/token` | buyer | A single-use Gemini Live token for dictating one request, in `en` or `fi` |
 | Audit | `GET /api/audit` | buyer | The whole append-only audit history, newest first |

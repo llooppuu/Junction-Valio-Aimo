@@ -243,6 +243,14 @@ export const OPERATIONS: Operation[] = [
   },
   { method: "get", path: "/api/agent/runs", summary: "List agent runs, newest first", tag: "Agent", roles: ["buyer"], responses: { "200": "Runs", ...AUTH_ERRORS } },
   { method: "get", path: "/api/agent/runs/{id}", summary: "Read one run and its steps", tag: "Agent", roles: ["buyer"], responses: { "200": "The run", "404": "Unknown run", ...AUTH_ERRORS } },
+  {
+    method: "post",
+    path: "/api/agent/runs/{id}/cancel",
+    summary: "Cancel a run in progress. The agent takes no further step; anything it already did, such as a quote, is kept",
+    tag: "Agent",
+    roles: ["buyer"],
+    responses: { "200": "The run, cancelled", "404": "Unknown run", "409": "The run has already finished", ...AUTH_ERRORS },
+  },
   { method: "get", path: "/api/voice", summary: "Whether voice input is on, and its Gemini Live model", tag: "Agent", roles: ["buyer"], responses: { "200": "Status", ...AUTH_ERRORS } },
   {
     method: "post",

@@ -323,6 +323,53 @@ describe("AI agent runs", () => {
   });
 });
 
+describe("cancelling a run", () => {
+  test("the buyer can stop the agent mid-run, and the conversation can carry on", async () => {
+    // Turn 1 reads the policy; turn 2 "thinks" until it is cancelled; later turns reply at once.
+    let turns = 0;
+    const model: AgentModel = {
+      name: "slow-test-model",
+      async respond(request) {
+        turns++;
+        if (turns === 1) return { text: "", toolCalls: [call("get_my_policy", {})], continuation: "turn-1" };
+        if (turns === 2) {
+          await new Promise<void>((_resolve, reject) => {
+            request.signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+          });
+        }
+        return { text: "Done.", toolCalls: [], continuation: `turn-${turns}` };
+      },
+    };
+    server = await startTestServer({ agentModel: model });
+
+    const started = await server.request("POST", "/api/agent/runs", { token: BUYER, body: { message: NEED } });
+    const id = started.body.run.id;
+    for (let i = 0; i < 100 && turns < 2; i++) await delay(10);
+
+    const cancelled = await server.request("POST", `/api/agent/runs/${id}/cancel`, { token: BUYER });
+    assert.equal(cancelled.status, 200);
+    assert.equal(cancelled.body.run.status, "cancelled");
+
+    await delay(50);
+    const after = await server.request("GET", `/api/agent/runs/${id}`, { token: BUYER });
+    assert.equal(after.body.run.status, "cancelled", "the abandoned model call does not turn it into a failure");
+    assert.equal(after.body.run.steps.length, 1, "the agent took no step after the cancel");
+
+    assert.equal((await server.request("POST", `/api/agent/runs/${id}/cancel`, { token: BUYER })).status, 409);
+    assert.equal((await server.request("POST", `/api/agent/runs/R-9999/cancel`, { token: BUYER })).status, 404);
+    assert.equal((await server.request("POST", `/api/agent/runs/${id}/cancel`, { token: AGENT })).status, 403);
+
+    const audit = await server.request("GET", "/api/audit", { token: BUYER });
+    const entry = audit.body.entries.find((candidate: { action: string }) => candidate.action === "agent.cancelled");
+    assert.ok(entry, "the cancel is in the audit history");
+    assert.equal(entry.actor.role, "buyer");
+    assert.match(entry.fi.summary, /peruttiin/);
+
+    const followUp = await startRun({ message: "Never mind, just read my policy.", conversationId: started.body.run.conversationId });
+    assert.equal(followUp.status, "completed");
+  });
+});
+
 describe("agent configuration", () => {
   test("the model name is public but the API key never leaves the server", async () => {
     const secret = "sk-test-do-not-leak-0123456789";

@@ -746,7 +746,7 @@ export interface AgentRun {
   model: string;
   agent: { id: string; name: string };
   request: string;
-  status: "running" | "completed" | "failed";
+  status: "running" | "completed" | "failed" | "cancelled";
   startedAt: string;
   finishedAt?: string;
   steps: AgentStep[];
@@ -784,6 +784,12 @@ export async function fetchVoiceStatus(signal?: AbortSignal): Promise<VoiceStatu
 export async function createVoiceSession(language: "en" | "fi"): Promise<VoiceSession> {
   const body = await request<{ session: VoiceSession }>("/api/voice/token", { method: "POST", body: JSON.stringify({ language }) });
   return body.session;
+}
+
+/** Stops a run in progress. Anything the agent already did, such as a quote, is kept. */
+export async function cancelAgentRun(id: string): Promise<AgentRun> {
+  const body = await request<{ run: AgentRun }>(`/api/agent/runs/${encodeURIComponent(id)}/cancel`, { method: "POST" });
+  return body.run;
 }
 
 /** Hands a request to the AI agent. The run starts at once and is followed with fetchAgentRun. */

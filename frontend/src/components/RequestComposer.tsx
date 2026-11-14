@@ -1,4 +1,4 @@
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, Square } from "lucide-react";
 import type { FormEvent, ReactNode, Ref } from "react";
 import { useI18n } from "../lib/i18n";
 
@@ -12,10 +12,12 @@ interface RequestComposerProps {
   inputRef?: Ref<HTMLTextAreaElement>;
   /** Future input methods can update the controlled draft before the buyer sends it. */
   inputActions?: ReactNode;
+  /** While busy, replaces Send with a Cancel button that stops the work in progress. */
+  onCancel?: () => void;
 }
 
 /** A shared draft and explicit send action for typed requests and future speech transcripts. */
-export function RequestComposer({ value, onChange, onSubmit, placeholder, disabled = false, busy = false, inputRef, inputActions }: RequestComposerProps) {
+export function RequestComposer({ value, onChange, onSubmit, placeholder, disabled = false, busy = false, inputRef, inputActions, onCancel }: RequestComposerProps) {
   const { t } = useI18n();
   const blocked = disabled || busy;
   const submit = (event: FormEvent) => {
@@ -45,10 +47,17 @@ export function RequestComposer({ value, onChange, onSubmit, placeholder, disabl
       />
       <div className="request-composer-actions">
         {inputActions}
-        <button type="submit" className="button-cta button-icon request-send" disabled={blocked || !value.trim()}>
-          {busy ? t("agent.working") : t("agent.send")}
-          <ArrowUp size={18} aria-hidden="true" />
-        </button>
+        {busy && onCancel ? (
+          <button type="button" className="button-secondary button-icon request-send request-cancel" onClick={onCancel} title={t("agent.cancelHint")}>
+            <Square size={16} aria-hidden="true" />
+            {t("agent.cancel")}
+          </button>
+        ) : (
+          <button type="submit" className="button-cta button-icon request-send" disabled={blocked || !value.trim()}>
+            {busy ? t("agent.working") : t("agent.send")}
+            <ArrowUp size={18} aria-hidden="true" />
+          </button>
+        )}
       </div>
     </form>
   );

@@ -89,7 +89,7 @@ export interface AgentRun {
   request: string;
   /** The language the agent replies in. */
   language: ReplyLanguage;
-  status: "running" | "completed" | "failed";
+  status: "running" | "completed" | "failed" | "cancelled";
   startedAt: string;
   finishedAt?: string;
   steps: AgentStep[];
@@ -130,6 +130,26 @@ export function createAgentState(): AgentState {
 /** Stops every run in progress, for example before a demo reset. */
 export function abortAgentRuns(state: AgentState) {
   for (const controller of state.controllers.values()) controller.abort();
+}
+
+/** The abort reason when the buyer cancels a run, to tell it apart from a demo reset. */
+const CANCELLED_BY_BUYER = "cancelled-by-buyer";
+
+/**
+ * Stops a run the buyer no longer wants. The model call or API call in flight
+ * is abandoned and the agent takes no further step. Anything it already did,
+ * such as a quote it created, stays as it is on the server. Returns false when
+ * the run is unknown or has already finished.
+ */
+export function cancelAgentRun(state: AgentState, runId: string): boolean {
+  const run = state.runs.get(runId);
+  const controller = state.controllers.get(runId);
+  if (!run || run.status !== "running" || !controller) return false;
+  run.status = "cancelled";
+  run.finishedAt = new Date().toISOString();
+  run.error = "The buyer cancelled this request.";
+  controller.abort(CANCELLED_BY_BUYER);
+  return true;
 }
 
 /** The season in the northern hemisphere, for planning menus around seasonal ingredients. */
@@ -269,8 +289,10 @@ export function startAgentRun(context: RunContext, input: StartRunInput): { run:
     fi: { summary: `Pyyntö agentille (ajo ${run.id}): "${truncate(input.message, 200)}"` },
   });
 
+  const cancelled = () => controller.signal.reason === CANCELLED_BY_BUYER;
   const done = execute(context, run, conversation, controller.signal)
     .catch((error: unknown) => {
+      if (cancelled()) return;
       run.status = "failed";
       conversation.continuation = continuationBefore;
       run.error = controller.signal.aborted
@@ -278,9 +300,23 @@ export function startAgentRun(context: RunContext, input: StartRunInput): { run:
         : `The agent could not finish: ${error instanceof Error ? error.message : String(error)}`;
     })
     .finally(() => {
-      run.finishedAt = new Date().toISOString();
+      run.finishedAt ??= new Date().toISOString();
       conversation.running = false;
       state.controllers.delete(run.id);
+      if (cancelled()) {
+        // The model may be waiting for tool results that will never come, so the conversation goes back to before this request.
+        conversation.continuation = continuationBefore;
+        recordAudit(store, context.requester, {
+          action: "agent.cancelled",
+          summary: `Cancelled agent run ${run.id} after ${run.steps.length} step${run.steps.length === 1 ? "" : "s"}.`,
+          reason: "Anything the agent had already done, such as a quote, is kept as it is.",
+          fi: {
+            summary: `Agentin ajo ${run.id} peruttiin ${run.steps.length} vaiheen jälkeen.`,
+            reason: "Agentin jo tekemät toimet, kuten tarjoukset, säilyvät ennallaan.",
+          },
+        });
+        return;
+      }
       if (!controller.signal.aborted) {
         recordAudit(store, context.agent, {
           action: "agent.finished",
@@ -384,6 +420,9 @@ async function execute(context: RunContext, run: AgentRun, conversation: Convers
       signal,
     });
   }
+
+  // A run the buyer cancelled while the last answer was on its way stays cancelled.
+  if (signal.aborted) return;
 
   // The outcome comes from the server's records, not from the model's reply.
   const quote = lastQuoteId ? store.quotes.get(lastQuoteId) : undefined;
