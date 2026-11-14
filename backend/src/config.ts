@@ -12,6 +12,15 @@ if (existsSync(envFile)) {
 
 const envSchema = z.object({
   BACKEND_PORT: z.coerce.number().int().min(1).max(65535).default(3001),
+  // Most hosting platforms tell the app which port to listen on in PORT. It wins over BACKEND_PORT.
+  PORT: z.coerce.number().int().min(1).max(65535).optional(),
+  // In production, the built frontend (frontend/dist). When set, the backend serves it and adds
+  // the buyer's and wholesaler's demo tokens to browser requests, as the Vite proxy does in development.
+  FRONTEND_DIST: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => value || undefined),
   // Demo credentials. Every value here is synthetic, but change them before exposing the app.
   AGENT_TOKEN: z.string().min(8).default("demo-agent-token"),
   BUYER_TOKEN: z.string().min(8).default("demo-buyer-token"),

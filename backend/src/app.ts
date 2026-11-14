@@ -28,6 +28,7 @@ import { substitutesRouter } from "./routes/substitutes.js";
 import { suppliersRouter } from "./routes/suppliers.js";
 import { wholesalerRouter } from "./routes/wholesaler.js";
 import { inventoryRouter, recipesRouter } from "./routes/recipes.js";
+import { browserTokenMiddleware, serveFrontend } from "./web.js";
 import { openApiDocument } from "./openapi.js";
 import { jwks } from "./services/signing.js";
 import { createStore, type Store } from "./store.js";
@@ -39,6 +40,11 @@ export interface AppOptions {
    * .env, or null (agent switched off) when no API key is set.
    */
   agentModel?: AgentModel | null;
+  /**
+   * The built frontend to serve, in production. Browser requests without a token then get the
+   * buyer's or wholesaler's demo token, as the Vite proxy adds them in development.
+   */
+  frontendDist?: string;
 }
 
 function defaultAgentModel(): AgentModel | null {
@@ -69,7 +75,7 @@ function routesOf(base: string, router: Router): ApiRoute[] {
   );
 }
 
-export function createApp({ store = createStore(), agentModel = defaultAgentModel() }: AppOptions = {}) {
+export function createApp({ store = createStore(), agentModel = defaultAgentModel(), frontendDist }: AppOptions = {}) {
   const app = express();
   app.disable("x-powered-by");
   app.use(express.json({ limit: "100kb" }));
@@ -112,6 +118,7 @@ export function createApp({ store = createStore(), agentModel = defaultAgentMode
     ["/api/mandates", mandatesRouter(store)],
     ["/api/autonomy", autonomyRouter(store)],
   ];
+  if (frontendDist) app.use("/api", browserTokenMiddleware({ buyer: config.BUYER_TOKEN, wholesaler: config.WHOLESALER_TOKEN }));
   for (const [path, router] of mounts) app.use(path, router);
   // Every route the app serves, for the test that keeps the OpenAPI document complete.
   app.locals.routes = [...appRoutes, ...mounts.flatMap(([path, router]) => routesOf(path, router))];
@@ -119,6 +126,8 @@ export function createApp({ store = createStore(), agentModel = defaultAgentMode
   app.use("/api", (_req: Request, res: Response) => {
     res.status(404).json({ error: "Not found" });
   });
+
+  if (frontendDist) serveFrontend(app, frontendDist);
 
   // Express identifies error handlers by their four parameters.
   app.use(

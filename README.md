@@ -58,6 +58,21 @@ In Windows PowerShell 5.1, use `curl.exe` instead of `curl`.
 | `OPENAI_MODEL`, `OPENAI_REASONING_EFFORT` | `gpt-5.5` and `low` by default |
 | `AGENT_TOKEN`, `SCHOOL_AGENT_TOKEN`, `BUYER_TOKEN`, `WHOLESALER_TOKEN` | Demo tokens. The AI agents send their own; the Vite proxy adds the buyer's and the wholesaler's |
 | `BACKEND_PORT` | The backend's port, 3001 by default |
+| `PORT`, `FRONTEND_DIST` | Production hosting: the port the platform gives, and the built frontend the backend then serves itself |
+
+## Deploy with Docker
+
+One container serves the API and the frontend on one port, so it runs on any host that runs Docker images.
+
+```bash
+# Build, with Valio Aimo's catalog built into the image. The key is a BuildKit secret, never stored in a layer.
+docker build --secret id=valio_api_key,env=VALIO_API_KEY -t trusted-trade-agents .
+
+# Run with your settings as environment variables.
+docker run --env-file .env -p 8080:8080 trusted-trade-agents
+```
+
+The app is then at <http://localhost:8080>. Without the build secret, the container builds the catalog on its first start from `VALIO_API_KEY`, which needs about 1 GB of memory. The browser app acts as the buyer, so set your own values for the demo tokens before you expose it.
 
 ## Project structure
 
@@ -69,6 +84,7 @@ backend/         Express API: catalog search, offers, quotes, orders, rules, man
 frontend/        React + Vite buyer and wholesaler app
   src/           Components, helpers and styles
 .env.example     Configuration template, copy it to .env
+Dockerfile       One container for the API and the frontend
 package.json     npm workspaces and the root commands
 ```
 
