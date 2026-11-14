@@ -3,6 +3,7 @@ import { fetchAudit, fetchQuoteAudit, type AuditEntry } from "../lib/api";
 import { formatTimeSeconds } from "../lib/format";
 import { useI18n } from "../lib/i18n";
 import { personName } from "../lib/names";
+import { localized } from "../lib/reasons";
 
 const POLL_INTERVAL_MS = 4000;
 
@@ -95,7 +96,7 @@ export function ActivityLog({ version, compact = false, focus = null, onOpenQuot
                 </time>
                 <div className="activity-body">
                   <p className={`activity-actor activity-actor-${entry.actor.role}`}>{personName(entry.actor.name)}</p>
-                  <p className="activity-summary">{entry.summary}</p>
+                  <p className="activity-summary">{localized(entry.summary, entry.fi?.summary)}</p>
                   <QuoteLinks entry={entry} current={null} onSelect={showQuote} />
                 </div>
               </li>
@@ -145,8 +146,8 @@ export function ActivityLog({ version, compact = false, focus = null, onOpenQuot
               </time>
               <div className="activity-body">
                 <p className={`activity-actor activity-actor-${entry.actor.role}`}>{personName(entry.actor.name)}</p>
-                <p className="activity-summary">{entry.summary}</p>
-                {entry.reason && <p className="activity-reason">{entry.reason}</p>}
+                <p className="activity-summary">{localized(entry.summary, entry.fi?.summary)}</p>
+                {entry.reason && <p className="activity-reason">{localized(entry.reason, entry.fi?.reason)}</p>}
                 <QuoteLinks entry={entry} current={quoteId} onSelect={showQuote} />
               </div>
             </li>

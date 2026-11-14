@@ -5,7 +5,7 @@ import { formatDeliveryDate, formatEuroCents, formatPackages, formatQuantity, fo
 import { useI18n } from "../lib/i18n";
 import type { MessageKey } from "../lib/messages";
 import { productName } from "../lib/names";
-import { serverPhrase } from "../lib/reasons";
+import { localized, serverPhrase } from "../lib/reasons";
 
 type DialogState =
   | { status: "loading" }
@@ -100,7 +100,7 @@ export function SubstitutesPanel({ product }: { product: Product }) {
                     <h3>{productName(substitute.productId, substitute.productName)}</h3>
                     <p className="approval-supplier">{substitute.supplier}</p>
                     <p className="compare-price">{formatEuroCents(substitute.costEurCents)}</p>
-                    <p className="substitute-tradeoff">{substitute.tradeOff}</p>
+                    <p className="substitute-tradeoff">{localized(substitute.tradeOff, substitute.tradeOffFi)}</p>
                     <dl className="compare-facts">
                       <div>
                         <dt>{t("subs.order")}</dt>
@@ -123,7 +123,7 @@ export function SubstitutesPanel({ product }: { product: Product }) {
             </div>
 
             {state.result.substitutes.length === 0 && (
-              <p className="dash-empty">{state.result.nextStep ?? t("subs.none")}</p>
+              <p className="dash-empty">{state.result.nextStep ? localized(state.result.nextStep, state.result.nextStepFi) : t("subs.none")}</p>
             )}
 
             {state.result.excluded.length > 0 && (
@@ -132,7 +132,7 @@ export function SubstitutesPanel({ product }: { product: Product }) {
                 <ul>
                   {state.result.excluded.map((item) => (
                     <li key={item.productId}>
-                      <strong>{item.supplier}</strong> {productName(item.productId, rates.get(item.productId)?.name ?? item.productId)}: {item.reasons.join("; ")}
+                      <strong>{item.supplier}</strong> {productName(item.productId, rates.get(item.productId)?.name ?? item.productId)}: {localized(item.reasons.join("; "), item.reasonsFi?.join("; "))}
                     </li>
                   ))}
                 </ul>

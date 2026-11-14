@@ -21,6 +21,7 @@ export function quotesRouter(store: Store) {
         action: "quote.refused",
         summary: "Refused an invalid quote request.",
         reason: describeIssues(parsed.error),
+        fi: { summary: "Virheellinen tarjouspyyntö hylättiin.", reason: "Pyynnön tiedot eivät vastanneet rajapinnan kuvausta." },
       });
       sendValidationError(res, parsed.error);
       return;

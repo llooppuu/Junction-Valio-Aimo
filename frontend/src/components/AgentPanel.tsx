@@ -12,6 +12,7 @@ import { useI18n, type I18n } from "../lib/i18n";
 import type { MessageKey } from "../lib/messages";
 import { personName } from "../lib/names";
 import { MenuPlanTable } from "./MenuPlanTable";
+import { localized } from "../lib/reasons";
 
 const POLL_INTERVAL_MS = 700;
 
@@ -392,7 +393,7 @@ function StepView({ step }: { step: AgentStep }) {
       <span className="agent-step-http">
         {step.method} /api{step.path}
       </span>
-      <span className="agent-step-summary">{step.summary}</span>
+      <span className="agent-step-summary">{localized(step.summary, step.summaryFi)}</span>
       {step.permission && <StepPermission permission={step.permission} />}
       {step.plan && (
         <span className="step-plan">

@@ -7,6 +7,7 @@ import type { Store } from "../store.js";
 import { recordAudit } from "./audit.js";
 import { formatEur } from "./permissions.js";
 import { findSubstitutes, type Tier } from "./substitutes.js";
+import { fiDate, fiEur } from "../i18n.js";
 
 /**
  * The agent's stock watch. Whenever a supplier's stock changes, it checks
@@ -24,15 +25,19 @@ export interface AlertProposal {
     tier: Tier;
     productId: string;
     productName: string;
+    productNameFi: string;
     supplier: string;
     packages: number;
     costEurCents: number;
     deliveryDate: string | null;
     tradeOff: string;
+    tradeOffFi: string;
   };
   /** Products ruled out for this kitchen, with the reasons. */
   ruledOut: { productId: string; productName: string; reason: string }[];
   note: string;
+  /** The note in Finnish. */
+  noteFi: string;
 }
 
 export interface StockAlert {
@@ -42,9 +47,12 @@ export interface StockAlert {
   buyerName: string;
   productId: string;
   productName: string;
+  productNameFi: string;
   supplier: string;
   /** For example "out of stock" or "only 1 package left, 2 on the next planned order". */
   problem: string;
+  /** The problem in Finnish. */
+  problemFi: string;
   affects: {
     dishes: { dish: string; role: IngredientRole }[];
     plannedOrder?: { name: string; deliveryDate: string; packages: number };
@@ -52,6 +60,19 @@ export interface StockAlert {
   proposals: AlertProposal[];
   status: "open" | "resolved";
   resolvedAt?: string;
+}
+
+/** Valio Aimo's availability reasons in Finnish, as the interface's serverPhrase shows them. */
+export function unavailableFi(reason: string): string {
+  const date = /(\d{4})-(\d{2})-(\d{2})/.exec(reason);
+  const shortDate = date ? `${Number(date[3])}.${Number(date[2])}.${date[1]}` : "";
+  if (reason === "Valio Aimo cannot deliver it on any date") return "Valio Aimo ei voi toimittaa sitä millekään päivälle";
+  if (reason === "Valio Aimo has blocked its sales for now") return "Valio Aimo on toistaiseksi estänyt sen myynnin";
+  if (reason === "Valio Aimo has no price for it") return "Valio Aimolla ei ole sille hintaa";
+  if (reason === "Valio Aimo did not report its availability") return "Valio Aimo ei ilmoittanut sen saatavuutta";
+  if (reason.startsWith("none available")) return shortDate ? `ei saatavilla ${shortDate}` : "ei saatavilla";
+  if (reason.startsWith("the order cut-off")) return `toimitukselle ${shortDate} tilausaika on päättynyt`;
+  return reason;
 }
 
 /** Every product a kitchen's recipes or next planned order depend on. */
@@ -108,6 +129,7 @@ export function watchStock(store: Store, productId: string): StockAlert[] {
           action: "stock.alert_resolved",
           productId,
           summary: `${open.id} resolved: ${product.supplier} has ${product.availablePackages} packages of ${product.name} again.`,
+          fi: { summary: `${open.id} ratkesi: toimittajalla ${product.supplier} on taas ${product.availablePackages} myyntierää tuotetta ${product.nameFi}.` },
         });
       }
       continue;
@@ -119,6 +141,11 @@ export function watchStock(store: Store, productId: string): StockAlert[] {
       : product.availablePackages === 0
         ? "out of stock"
         : `only ${product.availablePackages} ${product.availablePackages === 1 ? "package" : "packages"} left, ${needed} on the next planned order`;
+    const problemFi = product.unavailableReason
+      ? unavailableFi(product.unavailableReason)
+      : product.availablePackages === 0
+        ? "loppu varastosta"
+        : `jäljellä vain ${product.availablePackages} myyntierää, seuraavassa tilauksessa ${needed}`;
 
     // One proposal per role, because the right substitute depends on what the product does in the dish.
     const roles: (IngredientRole | undefined)[] = dishes.length > 0 ? [...new Set(dishes.map((dish) => dish.role))] : [undefined];
@@ -145,11 +172,13 @@ export function watchStock(store: Store, productId: string): StockAlert[] {
                 tier: best.tier,
                 productId: best.productId,
                 productName: best.productName,
+                productNameFi: store.products.find((candidate) => candidate.id === best.productId)?.nameFi ?? best.productName,
                 supplier: best.supplier,
                 packages: best.packages,
                 costEurCents: best.costEurCents,
                 deliveryDate: best.deliveryDate,
                 tradeOff: best.tradeOff,
+                tradeOffFi: best.tradeOffFi,
               },
             }
           : {}),
@@ -157,6 +186,9 @@ export function watchStock(store: Store, productId: string): StockAlert[] {
         note: best
           ? `${best.productName} from ${best.supplier}${role ? ` for the ${role}` : ""}: ${best.tradeOff}`
           : `No substitute${role ? ` suits the ${role}` : ""} within this kitchen's rules${planned && line ? ` by ${planned.deliveryDate}` : ""}.`,
+        noteFi: best
+          ? `${store.products.find((candidate) => candidate.id === best.productId)?.nameFi ?? best.productName}, toimittaja ${best.supplier}: ${best.tradeOffFi}`
+          : `Keittiön sääntöihin sopivaa korviketta ei löytynyt${planned && line ? ` toimitukselle ${fiDate(planned.deliveryDate)}` : ""}.`,
       };
     });
 
@@ -167,8 +199,10 @@ export function watchStock(store: Store, productId: string): StockAlert[] {
       buyerName: policy.buyerName,
       productId,
       productName: product.name,
+      productNameFi: product.nameFi,
       supplier: product.supplier,
       problem,
+      problemFi,
       affects: {
         dishes,
         ...(planned && line ? { plannedOrder: { name: planned.name, deliveryDate: planned.deliveryDate, packages: line.packages } } : {}),
@@ -183,11 +217,19 @@ export function watchStock(store: Store, productId: string): StockAlert[] {
       ...(dishes.length > 0 ? [dishes.map((dish) => dish.dish).join(", ")] : []),
       ...(alert.affects.plannedOrder ? [`${alert.affects.plannedOrder.packages} on the ${planned!.name.toLowerCase()} for ${planned!.deliveryDate}`] : []),
     ].join("; ");
+    const affectedFi = [
+      ...(dishes.length > 0 ? [`${dishes.length} ${dishes.length === 1 ? "ruokalaji" : "ruokalajia"}`] : []),
+      ...(alert.affects.plannedOrder ? [`${alert.affects.plannedOrder.packages} myyntierää seuraavassa tilauksessa ${fiDate(planned!.deliveryDate)}`] : []),
+    ].join("; ");
     recordAudit(store, agent, {
       action: "stock.alert",
       productId,
       summary: `${alert.id}: ${product.name} from ${product.supplier} is ${problem}. Affects ${affected}.`,
       reason: "Noticed by the agent's stock watch, without a request.",
+      fi: {
+        summary: `${alert.id}: ${product.nameFi} (${product.supplier}): ${problemFi}. Vaikuttaa: ${affectedFi}.`,
+        reason: "Agentin saldovahti huomasi tämän ilman pyyntöä.",
+      },
     });
     for (const proposal of proposals) {
       recordAudit(store, agent, {
@@ -197,6 +239,12 @@ export function watchStock(store: Store, productId: string): StockAlert[] {
         ...(proposal.substitute
           ? { reason: `Proposed only, nothing ordered. ${proposal.substitute.packages} packages for ${formatEur(proposal.substitute.costEurCents)}, delivered ${proposal.substitute.deliveryDate}.` }
           : {}),
+        fi: {
+          summary: `${alert.id}: ${proposal.noteFi}`,
+          ...(proposal.substitute
+            ? { reason: `Vain ehdotus, mitään ei tilattu. ${proposal.substitute.packages} myyntierää, ${fiEur(proposal.substitute.costEurCents)}, toimitus ${proposal.substitute.deliveryDate ? fiDate(proposal.substitute.deliveryDate) : "-"}.` }
+            : {}),
+        },
       });
     }
   }

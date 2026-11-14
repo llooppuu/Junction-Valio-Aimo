@@ -5,6 +5,17 @@ import { formatEuroCents, formatTimeSeconds } from "../lib/format";
 import { useI18n } from "../lib/i18n";
 import { personName } from "../lib/names";
 import { SalesAgentCard } from "./Suggestions";
+import { localized } from "../lib/reasons";
+import type { MessageKey } from "../lib/messages";
+
+/** Labels for the actions the wholesaler's refused-and-blocked list shows. */
+const ACTION_LABELS: Record<string, MessageKey> = {
+  "quote.blocked": "wh.action.quote.blocked",
+  "quote.refused": "wh.action.quote.refused",
+  "order.refused": "wh.action.order.refused",
+  "access.denied": "wh.action.access.denied",
+  "agent.tool_refused": "wh.action.agent.tool_refused",
+};
 
 const POLL_INTERVAL_MS = 4000;
 
@@ -114,7 +125,7 @@ export function WholesalerView({ version, onChange }: { version: number; onChang
                 <li key={item.quoteId} className="dash-row wholesale-row">
                   <span className="dash-row-main">
                     <strong>{item.quoteId}</strong> · {item.buyerName ? personName(item.buyerName) : ""}
-                    <span className="dash-row-sub">{item.reason}</span>
+                    <span className="dash-row-sub">{localized(item.reason, item.reasonFi)}</span>
                   </span>
                   <span className="dash-row-amount">{formatEuroCents(item.totalEurCents)}</span>
                 </li>
@@ -139,10 +150,10 @@ export function WholesalerView({ version, onChange }: { version: number; onChang
                 <li key={entry.id} className="dash-row wholesale-row">
                   <span className="dash-row-main">
                     <strong>
-                      <AlertOctagon aria-hidden="true" size={13} /> {entry.action}
+                      <AlertOctagon aria-hidden="true" size={13} /> {ACTION_LABELS[entry.action] ? t(ACTION_LABELS[entry.action]!) : entry.action}
                     </strong>{" "}
                     · {personName(entry.buyerName ?? entry.actor.name)}
-                    <span className="dash-row-sub">{entry.reason ?? entry.summary}</span>
+                    <span className="dash-row-sub">{entry.reason ? localized(entry.reason, entry.fi?.reason) : localized(entry.summary, entry.fi?.summary)}</span>
                   </span>
                   <span className="dash-row-amount wholesale-time">{formatTimeSeconds(entry.at)}</span>
                 </li>
@@ -167,8 +178,8 @@ export function WholesalerView({ version, onChange }: { version: number; onChang
                   {personName(entry.actor.name)}
                   {entry.buyerName ? ` · ${personName(entry.buyerName)}` : ""}
                 </p>
-                <p className="activity-summary">{entry.summary}</p>
-                {entry.reason && <p className="activity-reason">{entry.reason}</p>}
+                <p className="activity-summary">{localized(entry.summary, entry.fi?.summary)}</p>
+                {entry.reason && <p className="activity-reason">{localized(entry.reason, entry.fi?.reason)}</p>}
               </div>
             </li>
           ))}

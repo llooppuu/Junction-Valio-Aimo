@@ -70,6 +70,7 @@ export function wholesalerRouter(store: Store) {
           buyerName: buyerOf(quote.createdBy.id),
           totalEurCents: quote.totalEurCents,
           reason: quote.permission.reason,
+          reasonFi: quote.permission.reasonFi,
         })),
       attention: store.audit.filter((entry) => ATTENTION.includes(entry.action)).reverse().map(withBuyer),
       entries: store.audit.slice(-200).reverse().map(withBuyer),

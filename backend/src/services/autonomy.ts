@@ -3,6 +3,7 @@ import type { Product, ProductCategory } from "../schemas/product.js";
 import type { Store } from "../store.js";
 import { recordAudit } from "./audit.js";
 import { formatEur, type AgentPolicy, type GuardrailCheck } from "./permissions.js";
+import { CATEGORY_FI, fiEur, fiList, fiPerson, type Finnish } from "../i18n.js";
 
 /**
  * Earned autonomy. Today a person signs off every order; in an agentic setup
@@ -147,30 +148,42 @@ export function earnedAutonomyCheck(store: Store, policy: AgentPolicy, byCategor
   const supervised: string[] = [];
   const overCap: string[] = [];
   const earned: string[] = [];
+  const supervisedFi: string[] = [];
+  const overCapFi: string[] = [];
+  const earnedFi: string[] = [];
   for (const [category, amount] of byCategory) {
     const status = categoryAutonomy(policy, recordFor(store.trackRecords, policy.agentId, category));
     if (status.status === "supervised") {
       const remaining = status.approvalsToEarn - status.approvalsInRow;
       supervised.push(`${category} (${remaining} more approval${remaining === 1 ? "" : "s"} in a row needed)`);
+      supervisedFi.push(`${CATEGORY_FI[category]} (tarvitaan vielä ${remaining} peräkkäistä hyväksyntää)`);
     } else if (amount > status.capEurCents!) {
       overCap.push(`${formatEur(amount)} of ${category} is above the ${formatEur(status.capEurCents!)} the agent has earned`);
+      overCapFi.push(`${CATEGORY_FI[category]} ${fiEur(amount)} ylittää agentin ansaitseman ${fiEur(status.capEurCents!)}`);
     } else {
       earned.push(`${category} up to ${formatEur(status.capEurCents!)}`);
+      earnedFi.push(`${CATEGORY_FI[category]} enintään ${fiEur(status.capEurCents!)}`);
     }
   }
   const list = (items: string[]) => (items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`);
   if (supervised.length === 0 && overCap.length === 0) {
-    return { rule: "earned_autonomy", outcome: "passed", detail: `the agent has earned autonomy in ${list(earned)}` };
+    return {
+      rule: "earned_autonomy",
+      outcome: "passed",
+      detail: `the agent has earned autonomy in ${list(earned)}`,
+      detailFi: `agentti on ansainnut itsenäisyyden: ${fiList(earnedFi)}`,
+    };
   }
   const parts = [
     ...(supervised.length > 0 ? [`the agent has not yet earned autonomy in ${list(supervised)}`] : []),
     ...overCap,
   ];
-  return { rule: "earned_autonomy", outcome: "needs_approval", detail: list(parts) };
+  const partsFi = [...(supervisedFi.length > 0 ? [`agentti ei ole vielä ansainnut itsenäisyyttä: ${fiList(supervisedFi)}`] : []), ...overCapFi];
+  return { rule: "earned_autonomy", outcome: "needs_approval", detail: list(parts), detailFi: fiList(partsFi) };
 }
 
-function auditChange(store: Store, actor: Principal, summary: string, reason?: string, quoteId?: string) {
-  recordAudit(store, actor, { action: "autonomy.changed", summary, ...(reason ? { reason } : {}), ...(quoteId ? { quoteId } : {}) });
+function auditChange(store: Store, actor: Principal, summary: string, fi: Finnish, reason?: string, quoteId?: string) {
+  recordAudit(store, actor, { action: "autonomy.changed", summary, fi, ...(reason ? { reason } : {}), ...(quoteId ? { quoteId } : {}) });
 }
 
 /** The buyer approved an agent's quote: each category in it moves toward autonomy. */
@@ -185,7 +198,17 @@ export function recordApproval(store: Store, actor: Principal, policy: AgentPoli
     remember(record, { at, event: "approved", quoteId, amountEurCents: amount, note: `Approved ${formatEur(amount)} of ${category}.` });
     const after = categoryAutonomy(policy, record);
     if (policy.autonomy.mode === "earned" && before === "supervised" && after.status === "earned") {
-      auditChange(store, actor, `${policy.agentName} earned autonomy in ${category}: it may now order ${category} alone up to ${formatEur(after.capEurCents!)}.`, `${record.approvalsInRow} approvals in a row.`, quoteId);
+      auditChange(
+        store,
+        actor,
+        `${policy.agentName} earned autonomy in ${category}: it may now order ${category} alone up to ${formatEur(after.capEurCents!)}.`,
+        {
+          summary: `${fiPerson(policy.agentName)} ansaitsi itsenäisyyden tuoteryhmässä ${CATEGORY_FI[category]}: se voi nyt tilata itse enintään ${fiEur(after.capEurCents!)}.`,
+          reason: `${record.approvalsInRow} peräkkäistä hyväksyntää.`,
+        },
+        `${record.approvalsInRow} approvals in a row.`,
+        quoteId,
+      );
     }
   }
 }
@@ -212,7 +235,17 @@ export function recordSetback(
     record.lastReset = { at, reason };
     remember(record, { at, event: kind, ...(quoteId ? { quoteId } : {}), note: reason });
     if (policy.autonomy.mode === "earned" && wasEarned) {
-      auditChange(store, actor, `${policy.agentName} lost its autonomy in ${category} and is supervised again.`, reason, quoteId);
+      auditChange(
+        store,
+        actor,
+        `${policy.agentName} lost its autonomy in ${category} and is supervised again.`,
+        {
+          summary: `${fiPerson(policy.agentName)} menetti itsenäisyytensä tuoteryhmässä ${CATEGORY_FI[category]} ja on taas valvottu.`,
+          reason: kind === "rejected" ? "Ostaja hylkäsi tarjouksen." : "Säännöt estivät agentin yrityksen.",
+        },
+        reason,
+        quoteId,
+      );
     }
   }
 }
@@ -223,7 +256,9 @@ export function grantAutonomy(store: Store, actor: Principal, policy: AgentPolic
   const at = new Date().toISOString();
   record.grant = { capEurCents, at, by: actor.name };
   remember(record, { at, event: "granted", amountEurCents: capEurCents, note: `${actor.name} granted autonomy up to ${formatEur(capEurCents)}.` });
-  auditChange(store, actor, `Granted ${policy.agentName} autonomy in ${category} up to ${formatEur(capEurCents)}.`);
+  auditChange(store, actor, `Granted ${policy.agentName} autonomy in ${category} up to ${formatEur(capEurCents)}.`, {
+    summary: `Agentille ${fiPerson(policy.agentName)} myönnettiin itsenäisyys tuoteryhmässä ${CATEGORY_FI[category]}, enintään ${fiEur(capEurCents)}.`,
+  });
   return categoryAutonomy(policy, record);
 }
 
@@ -236,6 +271,12 @@ export function revokeAutonomy(store: Store, actor: Principal, policy: AgentPoli
   delete record.grant;
   record.lastReset = { at, reason };
   remember(record, { at, event: "revoked", note: reason });
-  auditChange(store, actor, `Revoked ${policy.agentName}'s autonomy in ${category}. It is supervised there again.`, reason);
+  auditChange(
+    store,
+    actor,
+    `Revoked ${policy.agentName}'s autonomy in ${category}. It is supervised there again.`,
+    { summary: `Agentin ${fiPerson(policy.agentName)} itsenäisyys tuoteryhmässä ${CATEGORY_FI[category]} peruttiin. Se on siellä taas valvottu.`, reason: "Ostaja perui itsenäisyyden." },
+    reason,
+  );
   return categoryAutonomy(policy, record);
 }

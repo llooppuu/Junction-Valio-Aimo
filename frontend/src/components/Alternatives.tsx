@@ -1,6 +1,7 @@
 import type { Alternative } from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import { productName } from "../lib/names";
+import { localized } from "../lib/reasons";
 
 /** What the agent could have chosen instead, and why each option was or was not used. */
 export function AlternativesList({ alternatives }: { alternatives: Alternative[] | undefined }) {
@@ -18,7 +19,7 @@ export function AlternativesList({ alternatives }: { alternatives: Alternative[]
               {alternative.supplier}
               <span className="approval-supplier">{productName(alternative.productId, alternative.productName)}</span>
             </span>
-            <span className="alternative-reason">{alternative.reason.replace(/^(Chosen|Not chosen|Excluded): /, "")}</span>
+            <span className="alternative-reason">{localized(alternative.reason, alternative.reasonFi).replace(/^(Chosen|Not chosen|Excluded|Valittu|Ei valittu|Pois suljettu): /, "")}</span>
           </li>
         ))}
       </ul>

@@ -190,6 +190,8 @@ export interface Quote {
     decision: "within_limit" | "needs_approval" | "created_by_buyer";
     limitEurCents: number | null;
     reason: string;
+    /** The same reason in Finnish. */
+    reasonFi?: string;
     checks: GuardrailCheck[];
   };
   deliveryDate: string;
@@ -222,7 +224,7 @@ export interface Suggestion {
   pitch: string;
   pricePerPackageEurCents: number;
   status: "suggested" | "held_back" | "quoted" | "dismissed";
-  screening: { suitable: boolean; reason: string; checks: GuardrailCheck[] };
+  screening: { suitable: boolean; reason: string; reasonFi?: string; checks: GuardrailCheck[] };
   quoteId?: string;
 }
 
@@ -419,6 +421,7 @@ export interface Alternative {
   supplier: string;
   verdict: "chosen" | "not_chosen" | "excluded";
   reason: string;
+  reasonFi?: string;
 }
 
 export interface WholesalerActivity {
@@ -438,7 +441,7 @@ export interface WholesalerActivity {
     accessDenied: number;
     toolRefused: number;
   }[];
-  waiting: { quoteId: string; agentName: string; buyerName: string | null; totalEurCents: number; reason: string }[];
+  waiting: { quoteId: string; agentName: string; buyerName: string | null; totalEurCents: number; reason: string; reasonFi?: string }[];
   attention: (AuditEntry & { buyerName: string | null })[];
   entries: (AuditEntry & { buyerName: string | null })[];
 }
@@ -455,6 +458,8 @@ export interface AuditEntry {
   action: string;
   summary: string;
   reason?: string;
+  /** The summary and reason in Finnish, written by the server. */
+  fi?: { summary: string; reason?: string };
   quoteId?: string;
   relatedQuoteId?: string;
   orderId?: string;
@@ -514,9 +519,15 @@ export interface GuardrailCheck {
     | "required_attributes"
     | "nutrition"
     | "standing_order_drift"
-    | "wholesaler_suggestion";
+    | "wholesaler_suggestion"
+    | "mandate"
+    | "allergen_declaration"
+    | "stock_confirmation"
+    | "earned_autonomy";
   outcome: "passed" | "needs_approval" | "blocked";
   detail: string;
+  /** The same detail in Finnish. */
+  detailFi?: string;
 }
 
 export async function fetchOrders(signal?: AbortSignal): Promise<Order[]> {
@@ -536,8 +547,10 @@ export interface StockAlert {
   buyerName: string;
   productId: string;
   productName: string;
+  productNameFi?: string;
   supplier: string;
   problem: string;
+  problemFi?: string;
   affects: {
     dishes: { dish: string; role: string }[];
     plannedOrder?: { name: string; deliveryDate: string; packages: number };
@@ -549,14 +562,17 @@ export interface StockAlert {
       tier: string;
       productId: string;
       productName: string;
+      productNameFi?: string;
       supplier: string;
       packages: number;
       costEurCents: number;
       deliveryDate: string;
       tradeOff: string;
+      tradeOffFi?: string;
     };
     ruledOut: { productId: string; productName: string; reason: string }[];
     note: string;
+    noteFi?: string;
   }[];
   status: "open" | "resolved";
   resolvedAt?: string;
@@ -597,6 +613,7 @@ export interface SubstitutesResult {
   policy: { agentId: string; buyerName: string } | null;
   /** Set when nothing qualifies: what to do instead. */
   nextStep?: string;
+  nextStepFi?: string;
   requested: { productId: string; packages: number; quantity: Quantity; unmet: string[] };
   substitutes: {
     tier: "best" | "better" | "good";
@@ -610,11 +627,12 @@ export interface SubstitutesResult {
     matchScore: number;
     matchNotes: string[];
     tradeOff: string;
+    tradeOffFi?: string;
     /** Each part of the server's ranking, 0 to 100, and the weighted total that set the tier. */
     scores: { similarity: number; price: number; preference: number; availability: number; combined: number };
     scoreNotes: { price: string; preference: string; availability: string };
   }[];
-  excluded: { productId: string; supplier: string; reasons: string[] }[];
+  excluded: { productId: string; supplier: string; reasons: string[]; reasonsFi?: string[] }[];
 }
 
 /** Good, better, and best substitutes for a product that cannot fill a request. */
@@ -711,6 +729,7 @@ export type AgentStep =
       httpStatus: number;
       ok: boolean;
       summary: string;
+      summaryFi?: string;
       quoteId?: string;
       orderId?: string;
       /** For calls that produced or refused a quote: the server's decision and every rule it checked. */

@@ -24,6 +24,7 @@ export function ordersRouter(store: Store) {
         action: "order.refused",
         summary: "Refused an invalid order request.",
         reason: describeIssues(parsed.error),
+        fi: { summary: "Virheellinen tilauspyyntö hylättiin.", reason: "Pyynnön tiedot eivät vastanneet rajapinnan kuvausta." },
       });
       sendValidationError(res, parsed.error);
       return;
