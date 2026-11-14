@@ -21,3 +21,4 @@ Thumbs.db
 
 # The catalog built from the organizers' data stays out of git
 backend/data/catalog.json
+backend/data/embeddings.*

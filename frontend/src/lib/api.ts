@@ -663,7 +663,7 @@ export async function fetchOfferResult(signal: AbortSignal | undefined, query: Q
 export interface ProductSearchResult {
   products: Product[];
   excluded: { productId: string; name: string; reasons: string[] }[];
-  source: { system: string; answeredAt: string | null; productsQueried: number };
+  source: { system: string; answeredAt: string | null; productsQueried: number; search?: "keyword" | "semantic"; searchFallback?: string };
 }
 
 /** One product with Valio Aimo's live price and availability. */

@@ -64,7 +64,7 @@ The server searches Valio Aimo's product data, fetches live price and availabili
 }
 ```
 
-`rankBy` can be `price` (per litre or kilogram), `delivery`, `reliability`, `labels` (with `preferLabels`), or `carbon`. Search parameters: `q` (text, English or Finnish), `category`, `attributes`, `labels`, `excludeAllergens`, `deliverBy`, `minQuantity` with its `unit`, and `limit` (20 by default, 50 at most). Lists are comma-separated.
+`rankBy` can be `price` (per litre or kilogram), `delivery`, `reliability`, `labels` (with `preferLabels`), or `carbon`. Search parameters: `q` (text, English or Finnish), `category`, `attributes`, `labels`, `excludeAllergens`, `deliverBy`, `minQuantity` with its `unit`, and `limit` (20 by default, 50 at most). Lists are comma-separated. Add `search=semantic` to rank by what the words mean rather than matching them, in English or Finnish; the answer's `source.search` says which was used.
 
 ### 3. Create a quote at the fixed price
 
@@ -129,7 +129,7 @@ Valio Aimo's mock environment has no order API, so an order is recorded here and
 
 | Area | Method and path | Who | What it does |
 | --- | --- | --- | --- |
-| Catalog | `GET /api/products` | public | Search by text, category, attributes, labels, allergens, deadline, and quantity |
+| Catalog | `GET /api/products` | public | Search by text or by meaning, category, attributes, labels, allergens, deadline, and quantity |
 | | `GET /api/products/{id}` | public | One product with live price and availability |
 | | `GET /api/offers` | public | Rank matching offers by price, delivery, reliability, labels, or carbon footprint, each with a reason |
 | | `GET /api/allergens` | public | The 14 EU allergens with their GS1 allergen type codes |

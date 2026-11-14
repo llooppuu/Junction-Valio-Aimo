@@ -17,6 +17,7 @@ import { productCategorySchema } from "./schemas/product.js";
 import { buyerDid, issueMandate, type Mandate } from "./services/mandates.js";
 import type { AutonomySettings } from "./services/autonomy.js";
 import { seededTrackRecords } from "./data/trackRecord.js";
+import { createQueryEmbedder, loadIndex, openAiEmbedder, type Embedder, type SemanticIndex } from "./services/semantic.js";
 
 /** The demo agent's limit: €1,400.00, so €1,390.00 passes and €1,454.00 needs approval. */
 export const DEMO_SPENDING_LIMIT_EUR_CENTS = 140000;
@@ -39,6 +40,10 @@ export interface StoreOptions {
    * "limits": agents order alone within their other rules. Tests of a single rule use it.
    */
   autonomy?: AutonomySettings["mode"];
+  /** The semantic index. Defaults to the one built by `npm run embeddings`, loaded on first use. Null switches it off. */
+  semanticIndex?: SemanticIndex | null;
+  /** Embeds search queries. Defaults to OpenAI when OPENAI_API_KEY is set. */
+  embedder?: Embedder | null;
 }
 
 function initialState(_options: StoreOptions) {
@@ -139,7 +144,21 @@ export function createStore(options: StoreOptions = {}) {
   const valio = options.valio ?? defaultValio();
   const clock = options.clock ?? (() => new Date());
 
-  return { options, principals, policies, catalog, valio, clock, ...initialState(options), ...initialMandates(policies) };
+  return { options, principals, policies, catalog, valio, clock, semantic: semanticSearch(options), ...initialState(options), ...initialMandates(policies) };
+}
+
+let sharedIndex: SemanticIndex | null | undefined;
+/** The semantic index, loaded once per process on first use, and the query embedder. */
+function semanticSearch(options: StoreOptions) {
+  const embedder = options.embedder === undefined ? (config.OPENAI_API_KEY ? openAiEmbedder(config.OPENAI_API_KEY) : null) : options.embedder;
+  return {
+    index: (): SemanticIndex | undefined => {
+      if (options.semanticIndex !== undefined) return options.semanticIndex ?? undefined;
+      if (sharedIndex === undefined) sharedIndex = loadIndex() ?? null;
+      return sharedIndex ?? undefined;
+    },
+    embedQuery: embedder ? createQueryEmbedder(embedder) : undefined,
+  };
 }
 
 let sharedCatalog: CatalogEntry[] | undefined;

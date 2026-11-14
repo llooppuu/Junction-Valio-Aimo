@@ -11,6 +11,8 @@ The organizers ask that live price and availability are fetched only for product
 1. **Search the static data.** `npm run data` turns the organizers' product file into a compact catalog (`backend/data/catalog.json`), with each product's category, contents, allergens (GS1 codes), labels, nutrition, delivery reliability, and carbon footprint. Search runs over it in memory: every word of the query must appear in the product's names, brand, supplier, category, or attributes, in English or Finnish.
 2. **Price the best matches only.** The best 20 matches (50 at most) are sent to `POST /api/price` and `POST /api/availability` for the requested delivery date. Long lists are split into batches of 1,000, the API's maximum.
 
+**Search by meaning** is the other way to do step 1. `npm run embeddings` stores an embedding of every product (both names, brand, category, attributes, and descriptions in English and Finnish; OpenAI `text-embedding-3-small`, 512 dimensions). With `search=semantic`, the query is embedded once and the products that pass the filters are ranked by similarity, so "something plant-based for cooking instead of cream" finds oat and soya cooking products although no word matches. Without the index or an OpenAI key, the search falls back to matching words and says why.
+
 Answers are cached briefly (price 5 minutes, availability 1 minute), and the client counts every call, product requested, cache hit, and failure.
 
 ## Reading Valio Aimo's answers

@@ -55,7 +55,7 @@ export const OPERATIONS: Operation[] = [
   {
     method: "get",
     path: "/api/products",
-    summary: "Search the catalog by text, category, attributes, labels, allergens, deadline, and quantity",
+    summary: "Search the catalog by text, category, attributes, labels, allergens, deadline, and quantity. search=semantic ranks by meaning, in English or Finnish",
     tag: "Catalog",
     roles: [],
     query: productQuerySchema,

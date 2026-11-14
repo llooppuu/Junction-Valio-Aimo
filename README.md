@@ -28,7 +28,7 @@ npm run data                # builds backend/data/catalog.json from the organize
 npm run dev
 ```
 
-`npm run data` downloads the organizers' product, reliability, and carbon files with `VALIO_API_KEY` and keeps only the built catalog, which is not in git.
+`npm run data` downloads the organizers' product, reliability, and carbon files with `VALIO_API_KEY` and keeps only the built catalog, which is not in git. Run `npm run embeddings` after it to switch on search by meaning in the catalog; without it, search matches words.
 
 | App | URL |
 | --- | --- |
@@ -44,6 +44,7 @@ In Windows PowerShell 5.1, use `curl.exe` instead of `curl`.
 | --- | --- |
 | `npm run dev` | Starts the backend and frontend with reloading |
 | `npm run data` | Builds the catalog from Valio Aimo's product, reliability, and carbon files |
+| `npm run embeddings` | Builds the index for search by meaning (needs `OPENAI_API_KEY` and the catalog; about a minute) |
 | `npm run mcp` | Starts the MCP server over stdio for a local MCP client, using the running API |
 | `npm test` | Runs the backend tests on recorded Valio Aimo answers, without calling the APIs |
 | `npm run test:adversarial` | Runs only the attacks by adversarial agents |

@@ -145,6 +145,8 @@ const productQueryObject = z.strictObject({
   unit: packageUnitSchema.optional(),
   /** How many products to return, best matches first. Only these get live price and availability from Valio Aimo. */
   limit: z.coerce.number().int().min(1).max(50).optional(),
+  /** "keyword" (the default) matches words; "semantic" ranks by meaning, in English or Finnish. */
+  search: z.enum(["keyword", "semantic"]).optional(),
 });
 
 const minQuantityNeedsUnit = {
