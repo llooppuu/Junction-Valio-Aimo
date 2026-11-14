@@ -2,7 +2,7 @@
 
 This page is a demo script. Each scenario names what to do in the app, what the server does, and the test that proves it. Start the app with `npm run dev`, open <http://localhost:5173>, and use **Start over** in the agent workspace to reset between scenarios. The language switch (EN / FI) at the top works in every view.
 
-## The brief's request, end to end
+## The brief's milk request, step by step
 
 > "I need 1,000 litres of lactose-free milk by Monday. Find an option that meets our requirements based on price and availability."
 
@@ -41,7 +41,7 @@ This page is a demo script. Each scenario names what to do in the app, what the 
 | Ask the school agent what it may order alone | It reads its own policy and mandate through the API and explains them |
 | Run `npm run test:adversarial` | Eleven attacks, from self-approval to prompt injection in product data, all stopped and recorded; see [Trust and controls](trust-and-controls.md#adversarial-tests) |
 
-## Exceptions beyond the happy path
+## When things go wrong
 
 | Exception | How it is handled |
 | --- | --- |

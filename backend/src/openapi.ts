@@ -405,6 +405,14 @@ export const OPERATIONS: Operation[] = [
     body: revokeAutonomySchema,
     responses: { "200": "The category's new status", "404": "Unknown agent or category", ...COMMON_ERRORS, ...AUTH_ERRORS },
   },
+  {
+    method: "post",
+    path: "/api/mcp",
+    summary: "The same interface as a Model Context Protocol server (Streamable HTTP, stateless): the agent's 16 tools, its policy and a purchasing guide as resources, and a prompt for quoting a need. Every tool call goes through this API with the agent's token",
+    tag: "Agent",
+    roles: ["agent"],
+    responses: { "200": "A JSON-RPC response", "401": "Missing or unknown bearer token", "403": "Not an agent token" },
+  },
   { method: "get", path: "/api/openapi.json", summary: "This document", tag: "Service", roles: [], responses: { "200": "OpenAPI 3.1 document" } },
 ];
 

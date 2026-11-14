@@ -15,7 +15,8 @@ If you have two minutes, read these in order:
 | Document | What it covers |
 | --- | --- |
 | [Architecture](architecture.md) | The parts, how a request flows through them, and the main design choices |
-| [API](api.md) | Authentication, the end-to-end flow with examples, every endpoint, and errors |
+| [API](api.md) | Authentication, a full purchase with examples, every endpoint, and errors |
+| [MCP clients](mcp.md) | Using the interface from an MCP client, locally or over the network |
 | [Trust and controls](trust-and-controls.md) | Signed offers, mandates, guardrails, earned autonomy, approvals, the audit history, and the adversarial tests |
 | [Valio Aimo integration](valio-integration.md) | The two-step lookup, how Valio Aimo's data is read, rate limits, and why orders wait for approval |
 | [Scenarios](scenarios.md) | A demo script for the judges and the brief's example scenarios |
@@ -26,8 +27,8 @@ If you have two minutes, read these in order:
 
 | Criterion | Where it is met |
 | --- | --- |
-| Working end-to-end demo (30%) | The brief's milk request runs from plain language through lookup, a fixed-price quote, and the approval gate to an order, on Valio Aimo's live mock APIs. See [Scenarios](scenarios.md#the-briefs-request-end-to-end). |
+| Working end-to-end demo (30%) | The brief's milk request runs from plain language through lookup, a fixed-price quote, and the approval gate to an order, on Valio Aimo's live mock APIs. See [Scenarios](scenarios.md#the-briefs-milk-request-step-by-step). |
 | Solving the buyer's need precisely (20%) | Requirements are read from the request and checked on the server: lactose-free, allergens, delivery by the deadline, enough stock, and the cheapest offer per litre that meets them all. Each alternative the agent did not choose is recorded with the reason. |
 | Autonomy and controls (20%) | Server-side rules the agent cannot change, a buyer-signed mandate, earned autonomy per product category, an approval queue, and an append-only audit history. Eleven adversarial tests show every attack stopped. See [Trust and controls](trust-and-controls.md). |
-| Robustness to exceptions (15%) | Order cut-offs, sales blocks, unknown and partial availability, stock that changes before ordering, substitutes by recipe role, and Valio Aimo's rate limit and outages. See [Valio Aimo integration](valio-integration.md) and [Scenarios](scenarios.md). |
+| Robustness to exceptions (15%) | Order cut-offs, sales blocks, unknown and partial availability, stock that changes before ordering, substitutes by recipe role, and Valio Aimo's rate limit and outages. See [Valio Aimo integration](valio-integration.md) and [Scenarios](scenarios.md#when-things-go-wrong). |
 | Openness and a path to production (15%) | OpenAPI 3.1, JWS with a published JWK Set, W3C Verifiable Credentials on did:key, GS1 allergen codes, and a documented list of assumptions and next steps. See [Standards and the path to production](standards-and-production.md). |

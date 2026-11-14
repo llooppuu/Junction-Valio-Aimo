@@ -6,7 +6,7 @@ Base URL in development: `http://localhost:3001`. In the Docker image, the API a
 
 ## Authentication and roles
 
-Every caller sends a bearer token: `Authorization: Bearer <token>`. The token decides the role.
+Every caller sends a bearer token: `Authorization: Bearer <token>`. Each token belongs to one caller with one role.
 
 | Role | Demo token (from `.env`) | May |
 | --- | --- | --- |
@@ -161,7 +161,8 @@ Valio Aimo's mock environment has no order API, so an order is recorded here and
 | | `GET /api/suggestions` | agent, buyer | The wholesaler's suggestions, as each buyer's agent screened them |
 | | `POST /api/suggestions/{id}/quote` | agent, buyer | Quote a suggestion; an agent's quote always waits for the buyer |
 | | `POST /api/suggestions/{id}/dismiss` | buyer | Dismiss a suggestion |
-| Agent | `GET /api/agent` | agent, buyer | Whether the AI agent is on, and its model |
+| Agent | `POST /api/mcp` | agent | The same interface as an MCP server (Streamable HTTP); see [MCP clients](mcp.md) |
+| | `GET /api/agent` | agent, buyer | Whether the AI agent is on, and its model |
 | | `POST /api/agent/runs` | buyer | Hand a request to a kitchen's AI agent |
 | | `GET /api/agent/runs`, `GET /api/agent/runs/{id}` | buyer | Runs and every API call each made |
 | Audit | `GET /api/audit` | buyer | The whole append-only audit history, newest first |

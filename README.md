@@ -15,6 +15,8 @@ It runs on **Valio Aimo's challenge material**: the 17,546-product data file, de
 
 An AI agent on GPT-5.5 runs the whole flow from a request in plain language, using only the public API with its own credentials. It gets no special treatment.
 
+MCP clients can use the interface too: `npm run mcp` starts a local MCP process, and a running app answers MCP at `POST /api/mcp`. Each tool call is forwarded to the REST API with the agent's token, so the same checks apply. See [docs/mcp.md](docs/mcp.md).
+
 ## Quick start
 
 You need **Node.js 22.12 or newer** and the challenge's **Valio Aimo API key**.
@@ -42,6 +44,7 @@ In Windows PowerShell 5.1, use `curl.exe` instead of `curl`.
 | --- | --- |
 | `npm run dev` | Starts the backend and frontend with reloading |
 | `npm run data` | Builds the catalog from Valio Aimo's product, reliability, and carbon files |
+| `npm run mcp` | Starts the MCP server over stdio for a local MCP client, using the running API |
 | `npm test` | Runs the backend tests on recorded Valio Aimo answers, without calling the APIs |
 | `npm run test:adversarial` | Runs only the attacks by adversarial agents |
 | `npm run record-fixture --workspace backend` | Records a fresh test fixture from the live APIs |
@@ -91,16 +94,16 @@ package.json     npm workspaces and the root commands
 
 ## The judges' criteria
 
-| Criterion | Where to look |
+| Criterion | Evidence |
 | --- | --- |
-| Working end-to-end demo | [Scenarios](docs/scenarios.md#the-briefs-request-end-to-end): the brief's request, from plain language to an order on Valio Aimo's live data |
+| Working end-to-end demo | [Scenarios](docs/scenarios.md#the-briefs-milk-request-step-by-step): the brief's request, from plain language to an order on Valio Aimo's live data |
 | Solving the buyer's need precisely | Requirements read from the request and checked on the server, the cheapest offer per litre that meets every rule and the date, and every alternative recorded with the reason |
 | Autonomy and controls | [Trust and controls](docs/trust-and-controls.md): server-side rules, signed mandates, earned autonomy, the approval queue, the audit history, and eleven adversarial tests |
-| Robustness to exceptions | [Valio Aimo integration](docs/valio-integration.md) and [Scenarios](docs/scenarios.md#exceptions-beyond-the-happy-path): cut-offs, sales blocks, unknown and partial availability, changed stock, rate limits, and outages |
+| Robustness to exceptions | [Valio Aimo integration](docs/valio-integration.md) and [Scenarios](docs/scenarios.md#when-things-go-wrong): cut-offs, sales blocks, unknown and partial availability, changed stock, rate limits, and outages |
 | Openness and a path to production | [Standards and the path to production](docs/standards-and-production.md): open standards, every assumption, and next steps |
 
 ## Documentation
 
-[docs/](docs/README.md) explains the [architecture](docs/architecture.md), the [API](docs/api.md), [trust and controls](docs/trust-and-controls.md), the [Valio Aimo integration](docs/valio-integration.md), [demo scenarios](docs/scenarios.md), [standards and the path to production](docs/standards-and-production.md), and [deployment](docs/deployment.md). The full API contract is at `/api/openapi.json`.
+[docs/](docs/README.md) explains the [architecture](docs/architecture.md), the [API](docs/api.md), [MCP clients](docs/mcp.md), [trust and controls](docs/trust-and-controls.md), the [Valio Aimo integration](docs/valio-integration.md), [demo scenarios](docs/scenarios.md), [standards and the path to production](docs/standards-and-production.md), and [deployment](docs/deployment.md). The full API contract is at `/api/openapi.json`.
 
 The product data is the organizers' and may be used only within Junction 2026.

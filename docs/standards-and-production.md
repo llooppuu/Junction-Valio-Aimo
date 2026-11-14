@@ -16,8 +16,9 @@ The brief asks for an interface defined on open, verifiable standards rather tha
 | Product identity | GTIN (GS1) | Each product carries its GTIN where Valio Aimo's data has one. |
 | Rate limiting | HTTP 429 and `Retry-After` (RFC 6585, RFC 9110) | Honoured towards Valio Aimo, and passed on to callers as `503` with `Retry-After`. |
 | Dates, money, countries | ISO 8601, ISO 4217 (EUR), ISO 3166-1 | Delivery dates and cut-offs, prices in euro cents, countries of origin. |
+| Agent interoperability | Model Context Protocol (MCP) | The agent's 16 tools, its policy, and a purchasing guide, over stdio and Streamable HTTP at `/api/mcp`. See [MCP clients](mcp.md). |
 
-The agent's 16 tools are thin wrappers over the public endpoints, described with JSON Schema. The same tool definitions can be served over the Model Context Protocol (MCP), so any MCP-capable agent can use the interface without custom code.
+The agent's 16 tools are thin wrappers over the public endpoints, described with JSON Schema, and the MCP layer lists those same definitions, so an MCP client needs no custom code and is held to the same rules.
 
 ## Assumptions
 
@@ -25,7 +26,7 @@ The agent's 16 tools are thin wrappers over the public endpoints, described with
 | --- | --- |
 | Products, prices, stock, delivery dates, cut-offs, delivery reliability, and carbon footprint are Valio Aimo's challenge data, unchanged. | Nothing about the products is invented. |
 | The kitchens, their rules, recipes, inventory, planned orders, order history, track records, and the wholesaler's launches are ours. | The challenge provides products, not customers. |
-| Prices are Valio Aimo's catalog price per sales unit, without VAT, for the requested delivery date. A quote fixes them. | The brief asks for fixed prices, not negotiation. |
+| Prices are Valio Aimo's catalog price per sales unit, without VAT, for the requested delivery date. A quote fixes them. | The brief bases ordering on list prices; there is no bargaining step. |
 | Availability of 999,999 or more means unknown, and any quantity can be ordered; an empty amount means not available; 0.01 means one unit; `closingTime` is the cut-off for `availableDate`. | Clarified by the Valio Aimo team. |
 | There is no order API, so an order is recorded here for a person to hand on. | Clarified by the Valio Aimo team. |
 | Human approval is needed at the order step at first, and can be relaxed per category as an agent proves reliable. | Valio Aimo enforces no approval gates today; in an agentic setup a person should approve until reliability is shown. |
@@ -48,7 +49,7 @@ The agent's 16 tools are thin wrappers over the public endpoints, described with
 3. **Key management.** Keep the signing keys in a key management service, rotate them, and keep old public keys in the JWK Set until their offers expire.
 4. **Mandate revocation others can check.** Publish revocations in a W3C Bitstring Status List, so a supplier or another agent can see that a mandate was revoked without asking this server.
 5. **An order API, and standard order documents.** When Valio Aimo opens order intake, an approved quote is sent there directly. Until then, and for other wholesalers, an order can be exported as a PEPPOL BIS Order (UBL 2.1).
-6. **The interface for any agent.** Serve the same tools over MCP and publish an agent card, so a buyer's existing assistant can work with Valio Aimo without integration work.
+6. **Discovery for any agent.** The MCP server exists; next, publish an agent card at a well-known URI, so a buyer's existing assistant can find and use Valio Aimo without being told where.
 7. **Trust from outcomes, not only approvals.** Feed delivery outcomes, credit notes, and complaints into earned autonomy, so a category is earned on what actually arrived, and lost when it did not.
 8. **Approvals where people are.** Notify the buyer on mobile or in the tools the kitchen already uses, with one-tap approve or reject and the reason attached.
 9. **Many buyers and wholesalers.** Separate tenants, per-tenant policies and keys, and Valio Aimo's view across all of them.
@@ -58,7 +59,7 @@ The agent's 16 tools are thin wrappers over the public endpoints, described with
 
 | Choice | Why |
 | --- | --- |
-| TypeScript end to end, strict mode | One language for API, agent, and interface; the type checker enforces that every audit entry and rule check has a Finnish sentence. |
+| TypeScript throughout, strict mode | One language for API, agent, and interface; the type checker enforces that every audit entry and rule check has a Finnish sentence. |
 | Express 5 and Zod 4 | Small, widely known, and the schemas produce both validation and the OpenAPI document. |
 | Node's built-in crypto for Ed25519 | No third-party signing library to trust. |
 | React 19 and Vite | A fast buyer interface; the dev proxy keeps tokens out of the browser bundle. |

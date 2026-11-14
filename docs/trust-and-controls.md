@@ -2,9 +2,9 @@
 
 An external agent should be able to act for a kitchen without anyone checking its every step, yet never do something the kitchen would not allow. This page describes the trust model: what an agent can rely on from Valio Aimo, what the kitchen can rely on from its agent, and how every decision can be checked afterwards.
 
-The principle throughout: **the server enforces, the agent asks.** Rules live on the server. An agent can read them, but no request can change them, and a model that is told to ignore them is still stopped.
+One idea runs through all of it: an agent may look up the rules it works under, but it has no way to change them, and every quote it makes is measured against them by the API. Telling the model to ignore a rule therefore achieves nothing.
 
-## Layers of control
+## Who decides what
 
 | Layer | Who sets it | What it decides | Where |
 | --- | --- | --- | --- |
@@ -22,7 +22,7 @@ A quote must pass every layer. The checks run in one place on the server, so a q
 Every product an agent looks up comes with a signed offer: the price, stock, origin, and allergens Valio Aimo reported, signed by this server as a compact JWS (RFC 7515) with EdDSA over Ed25519 (RFC 8037). Every quote carries one too, over its lines and total.
 
 - The public key is published as a JWK Set at `/.well-known/jwks.json`, so any agent or supplier can verify an offer without trusting this server's word for it.
-- A product offer is valid for 15 minutes, a quote offer for 24 hours: long enough to act on, short enough that stale prices are not used.
+- A product offer is valid for 15 minutes, a quote offer for 24 hours: long enough to act on, short enough that an outdated price is never acted on.
 - An agent can quote from a signed offer. If the offer was edited, or its price no longer matches the catalog, the quote is refused.
 - `POST /api/offers/verify` checks an offer for anyone, and the buyer's interface has a button that shows a tampered offer being rejected.
 
