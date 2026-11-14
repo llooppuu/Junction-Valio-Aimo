@@ -52,7 +52,7 @@ Valio Aimo's mock environment has no order API, and today Valio Aimo enforces no
 - created only from an authorized quote: one within the agent's earned authority, or one the buyer approved;
 - checked against Valio Aimo's price and availability again, just before it is committed;
 - recorded once per quote, with its lines, fixed prices, delivery date, and who authorized it;
-- the document a person hands on to Valio Aimo, until an order API exists.
+- available as a PEPPOL BIS Order 3.0 document (UBL 2.1 XML), with fixed prices, GTINs, VAT rates, and the delivery date, which a person forwards or any PEPPOL-capable system imports, until an order API exists. The Orders view has a download link on each order.
 
 [Earned autonomy](trust-and-controls.md#earned-autonomy) is how the need for a person can be relaxed later, category by category, as the agent proves reliable.
 

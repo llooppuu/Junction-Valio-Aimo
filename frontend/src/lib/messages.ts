@@ -271,6 +271,8 @@ export const en = {
   // Orders
   "orders.note":
     "Each order comes from one quote that was within the agent's limit or approved by you, and each quote can become at most one order.",
+  "orders.export": "Download as PEPPOL order (XML)",
+  "orders.exportHint": "A standard PEPPOL BIS Order 3.0 document with the fixed prices and delivery date, to forward to Valio Aimo or import into an ordering system.",
   "orders.loading": "Loading orders…",
   "orders.emptyTitle": "No orders yet",
   "orders.emptyText": "Ask the agent for something in the workspace. Orders it places appear here.",
@@ -818,6 +820,8 @@ export const fi: Record<MessageKey, string> = {
   // Orders
   "orders.note":
     "Jokainen tilaus perustuu yhteen tarjoukseen, joka oli agentin rajoissa tai jonka hyväksyit, ja kustakin tarjouksesta voi syntyä enintään yksi tilaus.",
+  "orders.export": "Lataa PEPPOL-tilauksena (XML)",
+  "orders.exportHint": "Vakiomuotoinen PEPPOL BIS Order 3.0 -asiakirja kiinteine hintoineen ja toimituspäivineen, lähetettäväksi Valio Aimolle tai tuotavaksi tilausjärjestelmään.",
   "orders.loading": "Ladataan tilauksia…",
   "orders.emptyTitle": "Ei vielä tilauksia",
   "orders.emptyText": "Pyydä agentilta jotain työtilassa. Sen tekemät tilaukset näkyvät täällä.",

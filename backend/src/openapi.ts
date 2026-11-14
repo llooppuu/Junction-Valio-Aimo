@@ -199,6 +199,14 @@ export const OPERATIONS: Operation[] = [
   { method: "get", path: "/api/orders/{id}", summary: "Read one order", tag: "Purchasing", roles: ["agent", "buyer"], responses: { "200": "The order", "404": "Unknown order", ...AUTH_ERRORS } },
   {
     method: "get",
+    path: "/api/orders/{id}/ubl",
+    summary: "The order as a PEPPOL BIS Order 3.0 document (UBL 2.1 XML), with fixed prices, GTINs, VAT rates, and the delivery date, to forward or import into any ordering system",
+    tag: "Purchasing",
+    roles: ["agent", "buyer"],
+    responses: { "200": "application/xml", "404": "Unknown order, or another kitchen's", ...AUTH_ERRORS },
+  },
+  {
+    method: "get",
     path: "/api/audit",
     summary: "The whole append-only audit history, newest first",
     tag: "Audit",

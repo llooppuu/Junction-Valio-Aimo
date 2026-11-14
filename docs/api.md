@@ -123,7 +123,7 @@ curl -X POST -H "Authorization: Bearer demo-agent-token" -H "Content-Type: appli
 
 Before committing, the server asks Valio Aimo for price and availability again. If stock changed, the quote becomes `out_of_date` and the answer lists the shortfall; `GET /api/quotes/{id}/shortfall-options` ranks the ways to cover it. Retrying an order returns the same order with `"created": false`, so a quote can become at most one order.
 
-Valio Aimo's mock environment has no order API, so an order is recorded here and is the document a person sends on. See [Valio Aimo integration](valio-integration.md#orders-wait-for-a-person).
+Valio Aimo's mock environment has no order API, so an order is recorded here, and `GET /api/orders/{id}/ubl` gives it as a PEPPOL BIS Order 3.0 document (UBL 2.1 XML) for a person to send on or a system to import. See [Valio Aimo integration](valio-integration.md#orders-wait-for-a-person).
 
 ## Endpoints
 
@@ -142,6 +142,7 @@ Valio Aimo's mock environment has no order API, so an order is recorded here and
 | | `GET /api/quotes/{id}/shortfall-options` | agent, buyer | Ranked ways to cover an out-of-date quote's shortfall |
 | | `POST /api/orders` | agent, buyer | Order an authorized quote; retrying returns the same order |
 | | `GET /api/orders`, `GET /api/orders/{id}` | agent, buyer | Orders, newest first |
+| | `GET /api/orders/{id}/ubl` | agent, buyer | The order as a PEPPOL BIS Order 3.0 document (UBL 2.1 XML) |
 | | `GET /api/policy` | agent, buyer, wholesaler | Purchasing policies, read-only; an agent sees its own |
 | Trust | `GET /.well-known/jwks.json` | public | The public key that signs offers (EdDSA, Ed25519) |
 | | `POST /api/offers/verify` | public | Verify a signed product or quote offer |
