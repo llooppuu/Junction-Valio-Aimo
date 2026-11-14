@@ -771,6 +771,8 @@ export interface VoiceSession {
   model: string;
   apiVersion: string;
   languageCode: string;
+  /** What the model replies with, which the session must ask for. */
+  responseModalities: ("TEXT" | "AUDIO")[];
   connectBefore: string;
   expiresAt: string;
 }

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, describe, it } from "node:test";
-import { liveSessionConfig, type VoiceLanguage, type VoiceTokens } from "../src/services/voice.js";
+import { Modality } from "@google/genai";
+import { liveSessionConfig, responseModalities, type VoiceLanguage, type VoiceTokens } from "../src/services/voice.js";
 import { AGENT, BUYER, startTestServer } from "./helpers.js";
 
 /** A stand-in for Gemini that records which languages it was asked for. */
@@ -17,6 +18,7 @@ function fakeTokens(fail = false): VoiceTokens & { asked: VoiceLanguage[] } {
         model: "gemini-test-live",
         apiVersion: "v1alpha",
         languageCode: language === "fi" ? "fi-FI" : "en-US",
+        responseModalities: [Modality.TEXT],
         connectBefore: "2026-11-14T12:01:00.000Z",
         expiresAt: "2026-11-14T12:05:00.000Z",
       };
@@ -71,6 +73,12 @@ describe("voice input", () => {
     const failed = await server.request("POST", "/api/voice/token", { token: BUYER, body: {} });
     assert.equal(failed.status, 502);
     assert.doesNotMatch(failed.body.error, /quota/, "Gemini's own error stays in the server log");
+  });
+
+  it("asks each kind of Live model for the reply type it supports", () => {
+    assert.deepEqual(responseModalities("gemini-3.5-transcribe-live"), [Modality.TEXT]);
+    assert.deepEqual(responseModalities("gemini-2.5-flash-native-audio-latest"), [Modality.AUDIO]);
+    assert.deepEqual(liveSessionConfig("en", "gemini-3.5-transcribe-live").responseModalities, [Modality.TEXT]);
   });
 
   it("fixes the session to transcription with manual turn-taking, biased to kitchen vocabulary", () => {

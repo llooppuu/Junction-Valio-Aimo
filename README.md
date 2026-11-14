@@ -62,7 +62,7 @@ In Windows PowerShell 5.1, use `curl.exe` instead of `curl`.
 | `OPENAI_API_KEY` | Turns on the AI agent. The key stays on the server |
 | `OPENAI_MODEL`, `OPENAI_REASONING_EFFORT` | `gpt-5.5` and `low` by default |
 | `GEMINI_API_KEY` | Turns on voice input in the agent workspace. The key stays on the server; the browser gets a single-use token per request |
-| `GEMINI_LIVE_MODEL` | The Gemini Live model that transcribes speech, `gemini-2.5-flash-native-audio-preview-09-2025` by default |
+| `GEMINI_LIVE_MODEL` | The Gemini Live model that transcribes speech, `gemini-3.5-transcribe-live` by default. A native-audio Live model such as `gemini-2.5-flash-native-audio-latest` also works |
 | `AGENT_TOKEN`, `SCHOOL_AGENT_TOKEN`, `BUYER_TOKEN`, `WHOLESALER_TOKEN` | Demo tokens. The AI agents send their own; the Vite proxy adds the buyer's and the wholesaler's |
 | `BACKEND_PORT` | The backend's port, 3001 by default |
 | `PORT`, `FRONTEND_DIST` | Production hosting: the port the platform gives, and the built frontend the backend then serves itself |

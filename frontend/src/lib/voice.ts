@@ -88,6 +88,8 @@ export async function startDictation({ language, onTranscript, onError }: Dictat
   let audio: AudioContext | undefined;
   let session: Session | undefined;
   let transcript = "";
+  // Words still being recognized, shown until the final transcript of them arrives.
+  let interim = "";
   let closedByUs = false;
   let finished: (() => void) | undefined;
   let graceTimer: ReturnType<typeof setTimeout> | undefined;
@@ -124,15 +126,19 @@ export async function startDictation({ language, onTranscript, onError }: Dictat
     const ai = new GoogleGenAI({ apiKey: voice.token, httpOptions: { apiVersion: voice.apiVersion } });
     session = await ai.live.connect({
       model: voice.model,
-      config: { responseModalities: [Modality.AUDIO] },
+      config: { responseModalities: voice.responseModalities.map((modality) => (modality === "TEXT" ? Modality.TEXT : Modality.AUDIO)) },
       callbacks: {
         onmessage: (message: LiveServerMessage) => {
           const content = message.serverContent;
           const text = content?.inputTranscription?.text;
+          const partial = content?.interimInputTranscription?.text;
           if (text) {
             transcript += text;
-            onTranscript(transcript.replace(/\s+/g, " ").trim());
+            interim = "";
+          } else if (partial !== undefined) {
+            interim = partial;
           }
+          if (text || partial !== undefined) onTranscript(`${transcript} ${interim}`.replace(/\s+/g, " ").trim());
           // The model answering means Gemini has heard the whole request.
           if (finished && (content?.modelTurn || content?.turnComplete || content?.generationComplete || content?.inputTranscription?.finished)) {
             clearTimeout(graceTimer);

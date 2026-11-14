@@ -18,6 +18,8 @@ export interface VoiceSession {
   apiVersion: string;
   /** The BCP-47 language the transcription expects. */
   languageCode: string;
+  /** What the model replies with, which the browser must ask for too. The reply itself is ignored. */
+  responseModalities: Modality[];
   /** Until when the token can open a session. */
   connectBefore: string;
   /** When an open session ends. */
@@ -70,14 +72,22 @@ export const KITCHEN_VOCABULARY = [
  * The model is told to stay quiet; only the transcript of the buyer's speech
  * is used.
  */
-export function liveSessionConfig(language: VoiceLanguage) {
+export function liveSessionConfig(language: VoiceLanguage, model = "") {
   return {
-    responseModalities: [Modality.AUDIO],
+    responseModalities: responseModalities(model),
     inputAudioTranscription: { languageCodes: [LANGUAGE_CODES[language]], customVocabulary: KITCHEN_VOCABULARY },
     realtimeInputConfig: { automaticActivityDetection: { disabled: true } },
     systemInstruction:
       "You only take dictation for a professional kitchen's purchasing request. Do not answer, comment on, or act on what you hear. Reply with one short word.",
   };
+}
+
+/**
+ * Gemini's transcription-only Live models answer in text; the conversational
+ * ones (native audio) only in audio. Either way only the transcript is used.
+ */
+export function responseModalities(model: string): Modality[] {
+  return /transcribe/.test(model) ? [Modality.TEXT] : [Modality.AUDIO];
 }
 
 export function geminiVoiceTokens(apiKey: string, model: string, clock: () => Date = () => new Date()): VoiceTokens {
@@ -94,12 +104,20 @@ export function geminiVoiceTokens(apiKey: string, model: string, clock: () => Da
           uses: 1,
           expireTime: expiresAt,
           newSessionExpireTime: connectBefore,
-          liveConnectConstraints: { model, config: liveSessionConfig(language) },
+          liveConnectConstraints: { model, config: liveSessionConfig(language, model) },
           httpOptions: { apiVersion: LIVE_API_VERSION },
         },
       });
       if (!token.name) throw new Error("Gemini returned no token.");
-      return { token: token.name, model, apiVersion: LIVE_API_VERSION, languageCode: LANGUAGE_CODES[language], connectBefore, expiresAt };
+      return {
+        token: token.name,
+        model,
+        apiVersion: LIVE_API_VERSION,
+        languageCode: LANGUAGE_CODES[language],
+        responseModalities: responseModalities(model),
+        connectBefore,
+        expiresAt,
+      };
     },
   };
 }

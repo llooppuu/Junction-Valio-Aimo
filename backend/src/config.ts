@@ -52,7 +52,7 @@ const envSchema = z.object({
     .trim()
     .optional()
     .transform((value) => value || undefined),
-  GEMINI_LIVE_MODEL: z.string().min(1).default("gemini-2.5-flash-native-audio-preview-09-2025"),
+  GEMINI_LIVE_MODEL: z.string().min(1).default("gemini-3.5-transcribe-live"),
 });
 
 export const config = envSchema.parse(process.env);
