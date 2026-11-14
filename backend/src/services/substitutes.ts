@@ -5,6 +5,7 @@ import type { Allergen, IngredientRole, PackageUnit, Product, ProductCategory } 
 import type { Requirements } from "../schemas/quote.js";
 import { unmetRequirements, type Quantity } from "./catalog.js";
 import { LABEL_TEXT } from "./offers.js";
+import { ALLERGEN_FI, fiEur, fiList, LABEL_FI, requirementFi } from "../i18n.js";
 import { formatEur, guardrailChecks, type AgentPolicy } from "./permissions.js";
 
 /**
@@ -50,6 +51,8 @@ export interface Substitute {
   matchNotes: string[];
   /** The trade-off against the requested product in price, delivery, and labels. */
   tradeOff: string;
+  /** The trade-off in Finnish. */
+  tradeOffFi: string;
   /** Each part of the ranking, 0 to 100, and their weighted total, which sets the tier. */
   scores: SubstituteScores;
   /** Why each part scored as it did, in plain language. */
@@ -76,6 +79,8 @@ export interface SubstitutesResult {
   policy: { agentId: string; buyerName: string } | null;
   /** Set when nothing qualifies: what the agent should do instead of guessing. */
   nextStep?: string;
+  /** The next step in Finnish, for the buyer reading the interface in Finnish. */
+  nextStepFi?: string;
   requested: {
     productId: string;
     productName: string;
@@ -86,7 +91,7 @@ export interface SubstitutesResult {
     unmet: string[];
   };
   substitutes: Substitute[];
-  excluded: { productId: string; supplier: string; reasons: string[] }[];
+  excluded: { productId: string; supplier: string; reasons: string[]; reasonsFi: string[] }[];
 }
 
 /** Allergens a product in this category contains by its nature, declared or not. */
@@ -210,6 +215,26 @@ function tradeOffText(candidate: Product, original: Product, costEurCents: numbe
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}.`;
 }
 
+/** The same trade-off in Finnish. */
+function tradeOffTextFi(candidate: Product, original: Product, costEurCents: number, originalCostEurCents: number): string {
+  const parts: string[] = [];
+  const difference = costEurCents - originalCostEurCents;
+  parts.push(
+    Math.abs(difference) < 1
+      ? "sama hinta kuin pyydetyllä"
+      : `${fiEur(Math.abs(difference))} ${difference > 0 ? "enemmän" : "vähemmän"} kuin pyydetty tuote (yhteensä ${fiEur(costEurCents)})`,
+  );
+  const gap = original.deliveryDate && candidate.deliveryDate ? dayGap(original.deliveryDate, candidate.deliveryDate) : 0;
+  if (gap < 0) parts.push(`toimitus ${-gap} ${gap === -1 ? "päivän" : "päivää"} aiemmin`);
+  if (gap > 0) parts.push(`toimitus ${gap} ${gap === 1 ? "päivän" : "päivää"} myöhemmin`);
+  const gained = candidate.labels.filter((label) => !original.labels.includes(label)).map((label) => LABEL_FI[label]);
+  const lost = original.labels.filter((label) => !candidate.labels.includes(label)).map((label) => LABEL_FI[label]);
+  if (gained.length > 0) parts.push(`lisäksi ${fiList(gained)}`);
+  if (lost.length > 0) parts.push(`ei ${lost.join(" tai ")}`);
+  const text = parts.join(", ");
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}.`;
+}
+
 /** Picks the tiers: best is the closest match, good the cheapest of the rest, better the strongest remaining. */
 /** The top three by combined score become best, better, and good. Ties go to the closer match, then the lower cost. */
 function assignTiers<T extends { scores: SubstituteScores; costEurCents: number }>(candidates: T[]) {
@@ -280,7 +305,7 @@ function scoreCandidate(
               ? "keeps none of the requested labels"
               : `keeps ${kept.length} of ${original.labels.length} labels`,
       ].join(", "),
-      availability: `${product.stockStatus === "plenty" ? "plenty in stock" : product.stockStatus === "unconfirmed" ? "delivered from the supplier's warehouse, amount unconfirmed" : `stock covers the order ${Math.floor(product.availablePackages / packages)} times over`}; ${reliability !== undefined ? `${Math.round(reliability * 100)}% delivered as ordered` : "no delivery record"}`,
+      availability: `${product.stockStatus === "unknown" ? "amount not reported, any quantity can be ordered" : product.stockStatus === "unconfirmed" ? "delivered from the supplier's warehouse, amount unconfirmed" : `stock covers the order ${Math.floor(product.availablePackages / packages)} times over`}; ${reliability !== undefined ? `${Math.round(reliability * 100)}% delivered as ordered` : "no delivery record"}`,
     },
   };
 }
@@ -290,6 +315,23 @@ function scoreCandidate(
  * which depends on the whole quote. Allergen conflicts would be blocked;
  * the other rules would need the buyer's approval, so neither is proposed.
  */
+/** The same reasons as policyReasons, each with its Finnish. */
+export function policyReasonPairs(policy: AgentPolicy, product: Product): { en: string; fi: string }[] {
+  return guardrailChecks(policy, [product], 0)
+    .filter((check) => check.rule !== "spending_limit" && check.outcome !== "passed")
+    .map((check) =>
+      check.outcome === "blocked"
+        ? {
+            en: `${check.detail.replace(`${product.name} (${product.supplier}) `, "")}, which ${policy.buyerName}'s allergen rule blocks`,
+            fi: `${check.detailFi.replace(`${product.nameFi} (${product.supplier}) `, "")}, minkä ostajan allergeenisääntö estää`,
+          }
+        : {
+            en: `${check.detail.replace(`${product.name} `, "")}, so ${policy.buyerName} would have to approve it`,
+            fi: `${check.detailFi}, joten ostajan pitäisi hyväksyä se`,
+          },
+    );
+}
+
 export function policyReasons(policy: AgentPolicy, product: Product): string[] {
   return guardrailChecks(policy, [product], 0)
     .filter((check) => check.rule !== "spending_limit" && check.outcome !== "passed")
@@ -342,6 +384,7 @@ export function findSubstitutes(
     if (processed && sharedWords(nameWords(product), nameWords(original)).length === 0) continue;
 
     const reasons = unmetRequirements(product, request.requirements);
+    const reasonsFi = reasons.map(requirementFi);
     if (!request.allowNewAllergens) {
       // Allergens the buyer's own rules exclude are already reported, so they are not repeated here.
       const known = new Set([
@@ -355,38 +398,47 @@ export function findSubstitutes(
       const added = [...new Set([...product.allergens, ...product.mayContain])].filter((allergen) => !known.has(allergen));
       if (added.length > 0) {
         reasons.push(`adds ${added.join(" and ")}, which the requested product does not contain`);
+        reasonsFi.push(`lisää allergeenin ${fiList(added.map((allergen) => ALLERGEN_FI[allergen]))}, jota pyydetty tuote ei sisällä`);
       }
     }
     if (policy) {
-      for (const reason of policyReasons(policy, product)) {
+      for (const reason of policyReasonPairs(policy, product)) {
         // The same allergen can already be excluded by the request itself.
-        if (!reasons.some((existing) => reason.startsWith(existing))) reasons.push(reason);
+        if (!reasons.some((existing) => reason.en.startsWith(existing))) {
+          reasons.push(reason.en);
+          reasonsFi.push(reason.fi);
+        }
       }
     }
     if (processed && request.role && FRESH_ONLY.has(request.role)) {
       reasons.push(`processed, so it cannot be used as a ${request.role}`);
+      reasonsFi.push("prosessoitu tuote, joten se ei sovi tähän käyttötarkoitukseen");
     }
     if (LIKE_FOR_LIKE_ONLY.has(original.category) && !original.substitutes.includes(product.id)) {
       const wanted = nameWords(original);
       if (sharedWords(nameWords(product), wanted).length === 0) {
         reasons.push(`a different product, not a like-for-like substitute for ${original.name.toLowerCase()}`);
+        reasonsFi.push(`eri tuote, ei vastaava korvike tuotteelle ${original.nameFi}`);
       }
       // In a dish, a main protein is swapped only for the same kind: salmon for trout, never for herring.
       const kind = proteinKind(original.name);
       const candidateKind = proteinKind(product.name);
       if (request.role === "main protein" && kind && candidateKind !== kind) {
         reasons.push(`${candidateKind ?? "not"} ${candidateKind ? "instead of" : "the same kind as"} ${kind}, which changes the dish`);
+        reasonsFi.push("eri raaka-aine kuin alkuperäisessä, mikä muuttaa ruokalajia");
       }
       const missingForm = formWords(original.name).filter((form) => !formWords(product.name).includes(form));
       if (missingForm.length > 0 && !reasons.some((reason) => reason.startsWith("a different product"))) {
         reasons.push(`not a ${missingForm.join(" ")} product, unlike ${original.name.toLowerCase()}`);
+        reasonsFi.push(`eri muoto kuin tuotteella ${original.nameFi}`);
       }
     }
     if (product.availablePackages < packages) {
       reasons.push(product.availablePackages === 0 ? "out of stock" : `only ${product.availablePackages} packages in stock, ${packages} needed`);
+      reasonsFi.push(product.availablePackages === 0 ? "loppu varastosta" : `varastossa vain ${product.availablePackages} myyntierää, tarvitaan ${packages}`);
     }
     if (reasons.length > 0) {
-      excluded.push({ productId: product.id, supplier: product.supplier, reasons });
+      excluded.push({ productId: product.id, supplier: product.supplier, reasons, reasonsFi });
       continue;
     }
 
@@ -403,6 +455,7 @@ export function findSubstitutes(
       matchScore: score,
       matchNotes: notes,
       tradeOff: tradeOffText(product, original, costEurCents, originalCost),
+      tradeOffFi: tradeOffTextFi(product, original, costEurCents, originalCost),
       ...scoreCandidate(product, original, score, policy, packages),
     });
   }
@@ -413,6 +466,7 @@ export function findSubstitutes(
     ...(substitutes.length === 0
       ? {
           nextStep: `No product in the catalog meets every rule${policy ? ` of ${policy.buyerName}` : ""}. Do not order anything else. Ask the buyer how to proceed.`,
+          nextStepFi: "Mikään valikoiman tuote ei täytä kaikkia sääntöjä. Älä tilaa mitään muuta, vaan kysy ostajalta, miten edetään.",
         }
       : {}),
     requested: {

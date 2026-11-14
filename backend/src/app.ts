@@ -4,7 +4,7 @@ import express, {
   type Response,
   type Router,
 } from "express";
-import { ValioUnavailableError } from "./services/valio.js";
+import { ValioRateLimitedError, ValioUnavailableError } from "./services/valio.js";
 import type { AgentModel } from "./agent/model.js";
 import { createOpenAiModel } from "./agent/openai-model.js";
 import { config } from "./config.js";
@@ -14,6 +14,7 @@ import { alertsRouter } from "./routes/alerts.js";
 import { standingOrdersRouter } from "./routes/standingOrders.js";
 import { suggestionsRouter } from "./routes/suggestions.js";
 import { mandatesRouter } from "./routes/mandates.js";
+import { autonomyRouter } from "./routes/autonomy.js";
 import { allergensRouter } from "./routes/allergens.js";
 import { auditRouter } from "./routes/audit.js";
 import { demoRouter } from "./routes/demo.js";
@@ -27,6 +28,7 @@ import { substitutesRouter } from "./routes/substitutes.js";
 import { suppliersRouter } from "./routes/suppliers.js";
 import { wholesalerRouter } from "./routes/wholesaler.js";
 import { inventoryRouter, recipesRouter } from "./routes/recipes.js";
+import { browserTokenMiddleware, serveFrontend } from "./web.js";
 import { openApiDocument } from "./openapi.js";
 import { jwks } from "./services/signing.js";
 import { createStore, type Store } from "./store.js";
@@ -38,6 +40,11 @@ export interface AppOptions {
    * .env, or null (agent switched off) when no API key is set.
    */
   agentModel?: AgentModel | null;
+  /**
+   * The built frontend to serve, in production. Browser requests without a token then get the
+   * buyer's or wholesaler's demo token, as the Vite proxy adds them in development.
+   */
+  frontendDist?: string;
 }
 
 function defaultAgentModel(): AgentModel | null {
@@ -68,7 +75,7 @@ function routesOf(base: string, router: Router): ApiRoute[] {
   );
 }
 
-export function createApp({ store = createStore(), agentModel = defaultAgentModel() }: AppOptions = {}) {
+export function createApp({ store = createStore(), agentModel = defaultAgentModel(), frontendDist }: AppOptions = {}) {
   const app = express();
   app.disable("x-powered-by");
   app.use(express.json({ limit: "100kb" }));
@@ -109,7 +116,9 @@ export function createApp({ store = createStore(), agentModel = defaultAgentMode
     ["/api/standing-orders", standingOrdersRouter(store)],
     ["/api/suggestions", suggestionsRouter(store)],
     ["/api/mandates", mandatesRouter(store)],
+    ["/api/autonomy", autonomyRouter(store)],
   ];
+  if (frontendDist) app.use("/api", browserTokenMiddleware({ buyer: config.BUYER_TOKEN, wholesaler: config.WHOLESALER_TOKEN }));
   for (const [path, router] of mounts) app.use(path, router);
   // Every route the app serves, for the test that keeps the OpenAPI document complete.
   app.locals.routes = [...appRoutes, ...mounts.flatMap(([path, router]) => routesOf(path, router))];
@@ -117,6 +126,8 @@ export function createApp({ store = createStore(), agentModel = defaultAgentMode
   app.use("/api", (_req: Request, res: Response) => {
     res.status(404).json({ error: "Not found" });
   });
+
+  if (frontendDist) serveFrontend(app, frontendDist);
 
   // Express identifies error handlers by their four parameters.
   app.use(
@@ -127,6 +138,8 @@ export function createApp({ store = createStore(), agentModel = defaultAgentMode
       }
       // Valio Aimo's APIs did not answer: say so plainly, and never guess a price or stock.
       if (error instanceof ValioUnavailableError) {
+        // When Valio Aimo's rate limit is the cause, tell the caller when to try again.
+        if (error instanceof ValioRateLimitedError) res.setHeader("Retry-After", String(Math.max(1, error.retryAfterSeconds)));
         res.status(503).json({ error: error.message, upstream: "valio-aimo" });
         return;
       }

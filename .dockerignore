@@ -1,0 +1,23 @@
+# Installed and built inside the image
+node_modules
+**/node_modules
+**/dist
+*.tsbuildinfo
+
+# Secrets stay out of the image: configure the container with environment variables
+.env
+.env.*
+!.env.example
+
+# The organizers' data is built into the image only through `npm run data`
+backend/data
+
+# Not needed to build or run
+.git
+.gitignore
+.vscode
+.idea
+*.log
+*.zip
+Dockerfile
+.dockerignore

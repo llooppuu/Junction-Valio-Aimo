@@ -12,7 +12,7 @@ export function suggestionRequest(suggestion: Suggestion): string {
 
 /** The buyer's agent's verdict, in the interface's language when it is Finnish. */
 function verdict(suggestion: Suggestion, perspective: "buyer" | "wholesaler" = "buyer"): string {
-  return suggestion.screening.suitable ? tr(perspective === "buyer" ? "sugg.suitable" : "sugg.suitableBuyer") : tr("sugg.heldBackReason", { reason: suggestion.screening.reason.replace(/^Held back: /, "") });
+  return suggestion.screening.suitable ? tr(perspective === "buyer" ? "sugg.suitable" : "sugg.suitableBuyer") : (suggestion.screening.reasonFi ?? tr("sugg.heldBackReason", { reason: suggestion.screening.reason.replace(/^Held back: /, "") }));
 }
 
 /**

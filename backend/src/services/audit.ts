@@ -1,5 +1,6 @@
 import type { Principal } from "../auth.js";
 import type { Store } from "../store.js";
+import type { Finnish } from "../i18n.js";
 
 export type AuditAction =
   | "quote.created"
@@ -25,6 +26,7 @@ export type AuditAction =
   | "suggestion.dismissed"
   | "mandate.issued"
   | "mandate.revoked"
+  | "autonomy.changed"
   | "demo.reset"
   | "agent.requested"
   | "agent.finished"
@@ -40,6 +42,8 @@ export interface AuditEntry {
   readonly summary: string;
   /** Why it happened, when there is a reason to give. */
   readonly reason?: string;
+  /** The summary and reason in Finnish, for the interface's Finnish view. Required, so no entry is English only. */
+  readonly fi: Readonly<Finnish>;
   readonly quoteId?: string;
   /** A second quote the entry concerns, such as the replacement of a quote. */
   readonly relatedQuoteId?: string;

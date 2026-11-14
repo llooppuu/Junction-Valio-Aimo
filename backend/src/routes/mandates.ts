@@ -7,6 +7,7 @@ import { recordAudit } from "../services/audit.js";
 import { formatEur } from "../services/permissions.js";
 import { activeMandate, issueMandate, verifyMandate } from "../services/mandates.js";
 import { MANDATE_VALID_DAYS, type Store } from "../store.js";
+import { fiDate, fiEur, fiPerson } from "../i18n.js";
 
 export const issueMandateSchema = z.strictObject({
   agentId: z.string().min(1),
@@ -61,6 +62,10 @@ export function mandatesRouter(store: Store) {
       action: "mandate.issued",
       summary: `Signed mandate ${mandate.id} for ${policy.agentName}: up to ${formatEur(limit)} per quote, ${mandate.allowedCategories.length} categories, until ${mandate.expiresAt.slice(0, 10)}.`,
       reason: previous ? `Replaces ${previous.id}.` : "The agent had no mandate in force.",
+      fi: {
+        summary: `Allekirjoitettiin valtuutus ${mandate.id} agentille ${fiPerson(policy.agentName)}: enintään ${fiEur(limit)} tarjousta kohden, ${mandate.allowedCategories.length} tuoteryhmää, ${fiDate(mandate.expiresAt)} asti.`,
+        reason: previous ? `Korvaa valtuutuksen ${previous.id}.` : "Agentilla ei ollut voimassa olevaa valtuutusta.",
+      },
     });
     res.status(201).json({ mandate });
   });
@@ -74,6 +79,7 @@ export function mandatesRouter(store: Store) {
     recordAudit(store, currentPrincipal(res), {
       action: "mandate.revoked",
       summary: `Revoked mandate ${mandate.id}. ${mandate.agentName} may not act until a new mandate is issued.`,
+      fi: { summary: `Valtuutus ${mandate.id} peruttiin. ${fiPerson(mandate.agentName)} ei voi toimia ennen kuin uusi valtuutus myönnetään.` },
     });
     res.json({ mandate });
   });

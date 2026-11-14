@@ -1,5 +1,6 @@
 import { allergenSchema, ingredientRoleSchema, labelSchema, productCategorySchema } from "../schemas/product.js";
 import { formatEur } from "../services/permissions.js";
+import { ALLERGEN_FI, fiBuyer, fiEur } from "../i18n.js";
 import type { ToolDefinition } from "./model.js";
 
 /**
@@ -23,6 +24,8 @@ export interface ToolExecution {
   body: unknown;
   /** One readable line for the buyer's step log. */
   summary: string;
+  /** The same summary in Finnish, for the interface's Finnish view. */
+  summaryFi: string;
   quoteId?: string;
   orderId?: string;
 }
@@ -376,7 +379,97 @@ function describeQuote(quote: QuoteLike) {
   return `${quote.id}, ${formatEur(quote.totalEurCents)}, status ${quote.status}`;
 }
 
-function summarize(name: string, status: number, body: any): Pick<ToolExecution, "summary" | "quoteId" | "orderId"> {
+const STATUS_FI: Record<string, string> = {
+  within_limit: "agentin rajoissa",
+  needs_approval: "vaatii hyväksynnän",
+  approved: "hyväksytty",
+  rejected: "hylätty",
+  out_of_date: "vanhentunut",
+  ordered: "tilattu",
+};
+const RANK_FI: Record<string, string> = { price: "hinnan", reliability: "toimitusvarmuuden", carbon: "hiilijalanjäljen" };
+const TIER_FI: Record<string, string> = { best: "paras", better: "parempi", good: "hyvä" };
+
+/** The Finnish summary of a call, from the same response the English one reads. */
+function summarizeFi(name: string, status: number, body: any): string {
+  if (status >= 400 || status === 0) return `Hylätty (${status})`;
+  switch (name) {
+    case "search_products": {
+      const products: { id: string }[] = body?.products ?? [];
+      return products.length === 0 ? "Ei osumia" : `${products.length} osumaa: ${products.map((product) => product.id).join(", ")}`;
+    }
+    case "compare_offers": {
+      const offers: { product: { id: string } }[] = body?.offers ?? [];
+      return offers.length === 0 ? "Ei sopivia tarjouksia" : `Järjestetty ${RANK_FI[body.rankBy] ?? body.rankBy} mukaan: ${offers.map((offer) => offer.product.id).join(" > ")}`;
+    }
+    case "find_substitutes": {
+      const substitutes: { tier: string; productId: string; scores?: { combined: number } }[] = body?.substitutes ?? [];
+      return substitutes.length === 0
+        ? `Ei sopivia korvikkeita (${body?.excluded?.length ?? 0} suljettu pois)`
+        : substitutes.map((substitute) => `${TIER_FI[substitute.tier] ?? substitute.tier}: ${substitute.productId} (${substitute.scores?.combined ?? "?"})`).join(", ");
+    }
+    case "get_suggestions": {
+      const suggestions: { id: string; productId: string }[] = body?.suggestions ?? [];
+      return suggestions.length === 0 ? "Ei ehdotuksia" : suggestions.map((item) => `${item.id}: ${item.productId}`).join(", ");
+    }
+    case "review_standing_order": {
+      const review = body?.reviews?.[0];
+      return review ? `${review.flagged ? "Poikkeama" : "Ei poikkeamaa"}: ${review.summaryFi ?? review.summary}` : "Ei vakiotilausta";
+    }
+    case "get_alerts": {
+      const alerts: { id: string; productNameFi?: string; productName: string; problemFi?: string; problem: string }[] = body?.alerts ?? [];
+      return alerts.length === 0 ? "Ei avoimia saldohälytyksiä" : alerts.map((alert) => `${alert.id}: ${alert.productNameFi ?? alert.productName}, ${alert.problemFi ?? alert.problem}`).join("; ");
+    }
+    case "find_recipes": {
+      const found: { id: string }[] = body?.recipes ?? [];
+      return found.length === 0 ? "Ei sopivia reseptejä" : `${found.length} reseptiä: ${found.map((recipe) => recipe.id).join(", ")}`;
+    }
+    case "plan_menu": {
+      const plan = body?.plan;
+      if (!plan) return "Valmis";
+      const toOrder = plan.rows.filter((row: { packages: number }) => row.packages > 0).length;
+      return (
+        `${plan.id}: ${toOrder} tuotetta tilattavana, ${fiEur(plan.totalEurCents)}, ${plan.problems.length} ongelmaa` +
+        (plan.resolutions?.length ? `, ${plan.resolutions.length} korvausta (${fiEur(plan.totalWithSubstitutesEurCents)} niiden kanssa)` : "")
+      );
+    }
+    case "get_my_policy": {
+      const policy = body?.policies?.[0];
+      if (!policy) return "Sääntöjä ei löytynyt";
+      const rules = [`ostoraja ${fiEur(policy.spendingLimitEurCents)}`];
+      if (policy.excludedAllergens?.length) rules.push(`ei sisällä: ${policy.excludedAllergens.map((allergen: string) => ALLERGEN_FI[allergen as keyof typeof ALLERGEN_FI] ?? allergen).join(", ")}`);
+      if (policy.preferredSuppliers?.length) rules.push(`ensisijaiset: ${policy.preferredSuppliers.join(", ")}`);
+      if (policy.requiredLabels?.length) rules.push(`merkinnät: ${policy.requiredLabels.join(", ")}`);
+      if (Object.keys(policy.nutritionMinimums ?? {}).length) rules.push("ravintoarvojen vähimmäismäärät");
+      return `${fiBuyer(policy.buyerName ?? "Ostaja")}: ${rules.join("; ")}`;
+    }
+    case "create_quote":
+    case "renew_standing_order":
+    case "quote_suggestion":
+    case "get_quote":
+    case "recheck_quote": {
+      const quote: QuoteLike | undefined = body?.quote;
+      return quote ? `${quote.id}, ${fiEur(quote.totalEurCents)}, tila: ${STATUS_FI[quote.status] ?? quote.status}` : "Valmis";
+    }
+    case "get_shortfall_options": {
+      const plans: { options: { productId: string }[] }[] = body?.plans ?? [];
+      const options = plans.flatMap((plan) => plan.options.map((option) => option.productId));
+      return options.length ? `Vaihtoehdot: ${options.join(", ")}` : "Ei sopivia vaihtoehtoja";
+    }
+    case "place_order": {
+      const order = body?.order;
+      return order ? `${body.created === false ? "Olemassa oleva tilaus" : "Tilaus"} ${order.id}, ${fiEur(order.totalEurCents)}` : "Valmis";
+    }
+    default:
+      return "Valmis";
+  }
+}
+
+function summarize(name: string, status: number, body: any): Pick<ToolExecution, "summary" | "summaryFi" | "quoteId" | "orderId"> {
+  return { ...summarizeEn(name, status, body), summaryFi: summarizeFi(name, status, body) };
+}
+
+function summarizeEn(name: string, status: number, body: any): Pick<ToolExecution, "summary" | "quoteId" | "orderId"> {
   if (status >= 400 || status === 0) {
     return { summary: `Refused (${status}): ${body?.error ?? "request failed"}` };
   }
@@ -516,13 +609,13 @@ export async function executeTool(
     args = parsed !== null && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
   } catch {
     const body = { error: "The tool arguments were not valid JSON." };
-    return { httpStatus: 0, method: "-", path: "-", body, summary: `Refused: ${body.error}` };
+    return { httpStatus: 0, method: "-", path: "-", body, summary: `Refused: ${body.error}`, summaryFi: "Hylätty: työkalua ei ole tai sen parametreja ei voitu lukea" };
   }
 
   const request = toRequest(name, args);
   if (!request) {
     const body = { error: `There is no tool called "${name}".` };
-    return { httpStatus: 0, method: "-", path: "-", body, summary: `Refused: ${body.error}` };
+    return { httpStatus: 0, method: "-", path: "-", body, summary: `Refused: ${body.error}`, summaryFi: "Hylätty: työkalua ei ole tai sen parametreja ei voitu lukea" };
   }
 
   const response = await fetch(`${api.baseUrl}${request.path}`, {

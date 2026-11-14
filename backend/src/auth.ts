@@ -2,6 +2,9 @@ import type { NextFunction, Request, Response } from "express";
 import { sendError } from "./http.js";
 import { recordAudit } from "./services/audit.js";
 import { mandateProblem } from "./services/mandates.js";
+import { fiPerson } from "./i18n.js";
+
+const ROLE_FI = { agent: "agentti", buyer: "ostaja", wholesaler: "tukkuri" } as const;
 import type { Store } from "./store.js";
 
 export type Role = "agent" | "buyer" | "wholesaler";
@@ -33,6 +36,10 @@ export function requireRole(store: Store, ...roles: Role[]) {
         action: "access.denied",
         summary: `Refused ${req.method} ${req.originalUrl.split("?")[0]} to ${principal.name}.`,
         reason: `This action needs the ${roles.join(" or ")} role, and the caller is ${principal.role === "agent" ? "an agent" : principal.role === "buyer" ? "a buyer" : "the wholesaler"}.`,
+        fi: {
+          summary: `Pyyntö ${req.method} ${req.originalUrl.split("?")[0]} hylättiin: ${fiPerson(principal.name)}.`,
+          reason: `Toiminto vaatii roolin ${roles.map((role) => ROLE_FI[role]).join(" tai ")}, ja kutsuja on ${ROLE_FI[principal.role]}.`,
+        },
       });
       sendError(res, 403, `This action needs the ${roles.join(" or ")} role.`);
       return;
@@ -46,6 +53,10 @@ export function requireRole(store: Store, ...roles: Role[]) {
           action: "access.denied",
           summary: `Refused ${req.method} ${req.originalUrl.split("?")[0]} to ${principal.name}: no valid mandate.`,
           reason: `Refused because ${problem}.`,
+          fi: {
+            summary: `Pyyntö ${req.method} ${req.originalUrl.split("?")[0]} hylättiin: ${fiPerson(principal.name)}, ei voimassa olevaa valtuutusta.`,
+            reason: "Agentilla ei ole voimassa olevaa ostajan allekirjoittamaa valtuutusta.",
+          },
         });
         sendError(res, 403, `Refused: ${problem}.`, { mandate: true });
         return;

@@ -5,6 +5,9 @@ import type { Store } from "../store.js";
 import { recordAudit } from "./audit.js";
 import { guardrailChecks, type GuardrailCheck } from "./permissions.js";
 import { createQuote, type Quote } from "./quotes.js";
+import { fiBuyer } from "../i18n.js";
+
+const KIND_FI = { new: "uutuus", seasonal: "sesonkituote" } as const;
 
 /**
  * Proactive selling, in two halves. The wholesaler's sales agent spots new and
@@ -30,7 +33,7 @@ export interface Suggestion {
   pricePerPackageEurCents: number;
   /** suggested: passed to the buyer; held_back: the buyer's agent screened it out. */
   status: "suggested" | "held_back" | "quoted" | "dismissed";
-  screening: { suitable: boolean; reason: string; checks: GuardrailCheck[] };
+  screening: { suitable: boolean; reason: string; reasonFi: string; checks: GuardrailCheck[] };
   quoteId?: string;
 }
 
@@ -68,6 +71,9 @@ export function runSalesAgent(store: Store, wholesaler: Principal, today: string
       const reason = suitable
         ? `Meets every rule of ${policy.buyerName}: ${checks.map((check) => check.detail).join("; ")}.`
         : `Held back: ${failing.map((check) => check.detail).join("; ")}.`;
+      const reasonFi = suitable
+        ? `Täyttää kaikki ostajan ${fiBuyer(policy.buyerName)} säännöt: ${checks.map((check) => check.detailFi).join("; ")}.`
+        : `Pidätetty: ${failing.map((check) => check.detailFi).join("; ")}.`;
 
       const suggestion: Suggestion = {
         id: `S-${String(store.nextSuggestionNumber++).padStart(4, "0")}`,
@@ -82,7 +88,7 @@ export function runSalesAgent(store: Store, wholesaler: Principal, today: string
         pitch: launch.pitch,
         pricePerPackageEurCents: product.pricePerPackageEurCents,
         status: suitable ? "suggested" : "held_back",
-        screening: { suitable, reason, checks },
+        screening: { suitable, reason, reasonFi, checks },
       };
       store.suggestions.push(suggestion);
       sent.push(suggestion);
@@ -92,12 +98,20 @@ export function runSalesAgent(store: Store, wholesaler: Principal, today: string
         productId: product.id,
         summary: `${suggestion.id}: the wholesaler's sales agent suggested ${product.name} (${launch.kind}) to ${policy.buyerName}.`,
         reason: "Wholesaler-initiated. Nothing is ordered unless the buyer approves.",
+        fi: {
+          summary: `${suggestion.id}: tukkurin myyntiagentti ehdotti tuotetta ${product.nameFi} (${KIND_FI[launch.kind]}) ostajalle ${fiBuyer(policy.buyerName)}.`,
+          reason: "Tukkurin aloitteesta. Mitään ei tilata, ellei ostaja hyväksy.",
+        },
       });
       recordAudit(store, agent, {
         action: "suggestion.screened",
         productId: product.id,
         summary: `${suggestion.id}: ${suitable ? "passed to the buyer" : "held back from the buyer"} after checking ${policy.buyerName}'s policy.`,
         reason,
+        fi: {
+          summary: `${suggestion.id}: ${suitable ? "välitettiin ostajalle" : "pidätettiin ostajalta"} ostajan ${fiBuyer(policy.buyerName)} sääntöjen tarkistuksen jälkeen.`,
+          reason: reasonFi,
+        },
       });
     }
   }
@@ -134,6 +148,7 @@ export function quoteSuggestion(store: Store, id: string, packages: number, prin
           rule: "wholesaler_suggestion",
           outcome: "needs_approval",
           detail: `suggested by the wholesaler's sales agent (${suggestion.id}), so the buyer decides`,
+          detailFi: `tukkurin myyntiagentin ehdotus (${suggestion.id}), joten ostaja päättää`,
         },
       ],
       suggestionId: suggestion.id,
@@ -146,6 +161,7 @@ export function quoteSuggestion(store: Store, id: string, packages: number, prin
     quoteId: quote.id,
     productId: suggestion.productId,
     summary: `${suggestion.id} became quote ${quote.id}. It waits for the buyer, because the wholesaler suggested it.`,
+    fi: { summary: `Ehdotuksesta ${suggestion.id} tehtiin tarjous ${quote.id}. Se odottaa ostajaa, koska ehdotus tuli tukkurilta.` },
   });
   return quote;
 }
@@ -157,6 +173,7 @@ export function dismissSuggestion(store: Store, id: string, principal: Principal
     action: "suggestion.dismissed",
     productId: suggestion.productId,
     summary: `${suggestion.id}: the buyer dismissed the suggestion of ${suggestion.productName}.`,
+    fi: { summary: `${suggestion.id}: ostaja hylkäsi ehdotuksen.` },
   });
   return suggestion;
 }

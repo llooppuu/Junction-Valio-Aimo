@@ -3,7 +3,7 @@ import { after, before, describe, it } from "node:test";
 import type { CatalogEntry } from "../src/data/catalog.js";
 import { allergenFromGs1, buyerCategory, labelFromCode, parseNameSize, salesUnitContents } from "../src/data/catalogMapping.js";
 import { productSchema } from "../src/schemas/product.js";
-import { toProduct } from "../src/services/market.js";
+import { toProduct, UNLIMITED_PACKAGES } from "../src/services/market.js";
 import type { ValioAvailability, ValioPrice } from "../src/services/valio.js";
 import { startTestServer, type TestServer } from "./helpers.js";
 
@@ -101,9 +101,14 @@ describe("reading Valio Aimo's live answers", () => {
   const now = new Date("2026-11-13T22:00:00+0200");
   const read = (p: ValioPrice | undefined, a: ValioAvailability | undefined) => toProduct(entry, p, a, "2026-11-13T22:00:00+0200", now);
 
-  it("tells counted, plentiful, unconfirmed, and missing stock apart", () => {
+  it("tells counted, unknown, unconfirmed, and missing stock apart", () => {
     assert.deepEqual([read(price(31.31), availability(48)).stockStatus, read(price(31.31), availability(48)).availablePackages], ["counted", 48]);
-    assert.equal(read(price(31.31), availability(9_999_999_999)).stockStatus, "plenty");
+    // 999,999 or more means Valio Aimo does not know the amount, and any quantity can be ordered.
+    for (const amount of [999_999, 35_714_285, 9_999_999_999]) {
+      const unknown = read(price(31.31), availability(amount));
+      assert.deepEqual([unknown.stockStatus, unknown.availablePackages, unknown.unavailableReason], ["unknown", UNLIMITED_PACKAGES, undefined], String(amount));
+    }
+    assert.equal(read(price(31.31), availability(999_998)).stockStatus, "counted");
     // A supplier's warehouse always reports 999,999: Valio Aimo cannot see the real amount.
     const terminal = read(price(31.31), availability(999_999, "Terminal", "2026-11-14T15:00:00+0200"));
     assert.deepEqual([terminal.stockStatus, terminal.logisticModel, terminal.unavailableReason], ["unconfirmed", "supplier", undefined]);
@@ -111,6 +116,21 @@ describe("reading Valio Aimo's live answers", () => {
     assert.equal(read(price(31.31), availability(null)).unavailableReason, "Valio Aimo cannot deliver it on any date");
     assert.equal(read(price(31.31), availability(48, "Stock", undefined, true)).unavailableReason, "Valio Aimo has blocked its sales for now");
     assert.equal(read({ ...price(1), error: true }, availability(48)).unavailableReason, "Valio Aimo has no price for it");
+  });
+
+  it("reads a fraction below one, such as 0.01 crates, as one sales unit", () => {
+    const tiny = read(price(31.31), availability(0.01));
+    assert.deepEqual([tiny.stockStatus, tiny.availablePackages, tiny.unavailableReason], ["counted", 1, undefined]);
+    assert.equal(read(price(31.31), availability(2.5)).availablePackages, 2);
+  });
+
+  it("treats an empty amount as not available", () => {
+    const empty: ValioAvailability = {
+      ...availability(48),
+      scheduleLines: [{ salesBlock: false, availableAmount: null as unknown as number, availableDate: "2026-11-16", salesUnit: "KI" }],
+    };
+    const product = read(price(31.31), empty);
+    assert.deepEqual([product.availablePackages, product.unavailableReason], [0, "none available for 2026-11-16"]);
   });
 
   it("refuses a delivery date whose order cut-off has passed, and says when it was", () => {
@@ -158,7 +178,7 @@ describe("GET /api/products", () => {
     assert.equal(milk.salesUnit, "ST");
     assert.equal(milk.pricePerPackageEurCents, 101);
     assert.equal(milk.vatRatePercent, 13.5);
-    assert.equal(milk.stockStatus, "plenty");
+    assert.equal(milk.stockStatus, "unknown");
     assert.equal(milk.availableQuantity, null);
     assert.equal(milk.deliveryDate, "2026-11-16");
     assert.equal(milk.orderCutoff, "2026-11-15T17:00:00+0200");

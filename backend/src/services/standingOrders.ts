@@ -6,6 +6,14 @@ import type { Store } from "../store.js";
 import { recordAudit } from "./audit.js";
 import { formatEur, type GuardrailCheck } from "./permissions.js";
 import { createQuote, type Quote } from "./quotes.js";
+import { fiDate, fiEur } from "../i18n.js";
+
+/** The standing orders' names in Finnish. */
+const ORDER_NAME_FI: Record<string, string> = {
+  "Weekly kitchen order": "viikoittainen keittiötilaus",
+  "Weekly school kitchen order": "koulukeittiön viikkotilaus",
+};
+const orderNameFi = (name: string) => ORDER_NAME_FI[name] ?? name;
 
 /**
  * Standing order drift: before a weekly order renews itself, compare it with
@@ -43,6 +51,8 @@ export interface StandingOrderReview {
   flagged: boolean;
   /** One sentence for the buyer, for example "Emmental: 4 packages against an average of 2.4 (+68%)". */
   summary: string;
+  /** The same sentence in Finnish. */
+  summaryFi: string;
 }
 
 const round = (value: number, places = 1) => Math.round(value * 10 ** places) / 10 ** places;
@@ -101,6 +111,14 @@ export function reviewStandingOrder(store: Store, agentId: string): StandingOrde
     ...drifted.map((line) => `${line.productName}: ${line.renewal} packages against an average of ${round(line.mean)} (${signed(line.changePct)})`),
     ...(cost.flagged ? [`total ${formatEur(cost.renewal)} against an average of ${formatEur(cost.mean)} (${signed(cost.changePct)})`] : []),
   ];
+  const fiNumber = (value: number) => String(round(value)).replace(".", ",");
+  const partsFi = [
+    ...drifted.map((line) => {
+      const nameFi = store.products.find((candidate) => candidate.id === line.productId)?.nameFi ?? line.productName;
+      return `${nameFi}: ${line.renewal} myyntierää, keskiarvo ${fiNumber(line.mean)} (${signed(line.changePct)})`;
+    }),
+    ...(cost.flagged ? [`yhteensä ${fiEur(cost.renewal)}, keskiarvo ${fiEur(cost.mean)} (${signed(cost.changePct)})`] : []),
+  ];
 
   return {
     agentId,
@@ -115,6 +133,9 @@ export function reviewStandingOrder(store: Store, agentId: string): StandingOrde
     summary: flagged
       ? `Drifted more than ${DRIFT_THRESHOLD_PCT}% from the last ${weeks.length} weeks: ${parts.join("; ")}.`
       : `Every line and the total (${formatEur(cost.renewal)}) are within ${DRIFT_THRESHOLD_PCT}% of the last ${weeks.length} weeks.`,
+    summaryFi: flagged
+      ? `Poikkeaa yli ${DRIFT_THRESHOLD_PCT} % viimeisistä ${weeks.length} viikosta: ${partsFi.join("; ")}.`
+      : `Jokainen rivi ja kokonaissumma (${fiEur(cost.renewal)}) ovat ${DRIFT_THRESHOLD_PCT} %:n sisällä viimeisistä ${weeks.length} viikosta.`,
   };
 }
 
@@ -126,6 +147,9 @@ export function driftCheck(review: StandingOrderReview): GuardrailCheck {
     detail: review.flagged
       ? review.summary.charAt(0).toLowerCase() + review.summary.slice(1, -1)
       : `within ${review.thresholdPct}% of the last ${review.weeks.length} weeks`,
+    detailFi: review.flagged
+      ? review.summaryFi.charAt(0).toLowerCase() + review.summaryFi.slice(1, -1)
+      : `${review.thresholdPct} %:n sisällä viimeisistä ${review.weeks.length} viikosta`,
   };
 }
 
@@ -151,6 +175,13 @@ export function renewStandingOrder(
     action: "standing_order.reviewed",
     summary: `Reviewed the renewal of the ${review.name.toLowerCase()} for ${review.deliveryDate} against the last ${review.weeks.length} weeks.`,
     reason: leftOut.length > 0 ? `${review.summary} Left out: ${leftOut.map((line) => `${line.productName} (${line.reason})`).join("; ")}.` : review.summary,
+    fi: {
+      summary: `Tarkistettiin tilauksen ${orderNameFi(review.name)} uusinta toimitukselle ${fiDate(review.deliveryDate)} viimeisiin ${review.weeks.length} viikkoon verrattuna.`,
+      reason:
+        leftOut.length > 0
+          ? `${review.summaryFi} Jätettiin pois: ${leftOut.map((line) => store.products.find((product) => product.id === line.productId)?.nameFi ?? line.productName).join(", ")}, koska Valio Aimo ei voi toimittaa niitä.`
+          : review.summaryFi,
+    },
   });
   const quote = createQuote(
     store,

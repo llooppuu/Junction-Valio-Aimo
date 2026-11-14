@@ -2,6 +2,7 @@ import type { Principal } from "../auth.js";
 import { ApiError } from "../http.js";
 import { recordAudit } from "../services/audit.js";
 import { formatEur } from "../services/permissions.js";
+import { fiEur } from "../i18n.js";
 import type { QuoteStatus } from "../services/quotes.js";
 import type { Store } from "../store.js";
 import type { AgentModel, ModelTurn, ToolResult } from "./model.js";
@@ -27,6 +28,8 @@ export type AgentStep =
       httpStatus: number;
       ok: boolean;
       summary: string;
+      /** The summary in Finnish. */
+      summaryFi: string;
       quoteId?: string;
       orderId?: string;
       /** For calls that produced or refused a quote: the server's permission decision and every rule it checked. */
@@ -67,6 +70,15 @@ export type AgentOutcome =
   | "ordered"
   | "needs_attention"
   | "answered";
+
+/** Each outcome in Finnish, for the audit history. */
+const OUTCOME_FI: Record<AgentOutcome, string> = {
+  awaiting_approval: "odottaa hyväksyntää",
+  quote_ready: "tarjous valmis",
+  ordered: "tilattu",
+  needs_attention: "vaatii huomiota",
+  answered: "vastattu",
+};
 
 export interface AgentRun {
   id: string;
@@ -254,6 +266,7 @@ export function startAgentRun(context: RunContext, input: StartRunInput): { run:
   recordAudit(store, context.requester, {
     action: "agent.requested",
     summary: `Asked the agent (run ${run.id}): "${truncate(input.message, 200)}"`,
+    fi: { summary: `Pyyntö agentille (ajo ${run.id}): "${truncate(input.message, 200)}"` },
   });
 
   const done = execute(context, run, conversation, controller.signal)
@@ -277,6 +290,13 @@ export function startAgentRun(context: RunContext, input: StartRunInput): { run:
               ? `Agent run ${run.id} finished: ${run.outcome?.replace("_", " ")}${run.quote ? ` on quote ${run.quote.id} (${formatEur(run.quote.totalEurCents)})` : ""}.`
               : `Agent run ${run.id} failed.`,
           reason: run.status === "completed" ? undefined : run.error,
+          fi: {
+            summary:
+              run.status === "completed"
+                ? `Agentin ajo ${run.id} valmis: ${run.outcome ? OUTCOME_FI[run.outcome] : "valmis"}${run.quote ? `, tarjous ${run.quote.id} (${fiEur(run.quote.totalEurCents)})` : ""}.`
+                : `Agentin ajo ${run.id} epäonnistui.`,
+            ...(run.status === "completed" ? {} : { reason: controller.signal.aborted ? "Ajo pysäytettiin, koska demo aloitettiin alusta." : "Agentti ei saanut tehtävää valmiiksi." }),
+          },
         });
       }
     });
@@ -332,6 +352,7 @@ async function execute(context: RunContext, run: AgentRun, conversation: Convers
         httpStatus: execution.httpStatus,
         ok: execution.httpStatus >= 200 && execution.httpStatus < 300,
         summary: execution.summary,
+        summaryFi: execution.summaryFi,
         quoteId: execution.quoteId,
         orderId: execution.orderId,
         permission: permissionOf(execution.httpStatus, execution.body),
@@ -343,6 +364,7 @@ async function execute(context: RunContext, run: AgentRun, conversation: Convers
           action: "agent.tool_refused",
           summary: `Refused the agent's call to ${call.name} in run ${run.id}.`,
           reason: execution.summary.replace(/^Refused: /, ""),
+          fi: { summary: `Agentin kutsu ${call.name} ajossa ${run.id} hylättiin.`, reason: "Työkalua ei ole olemassa tai sen parametreja ei voitu lukea." },
         });
       }
       results.push({

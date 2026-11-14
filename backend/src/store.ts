@@ -15,6 +15,8 @@ import type { StockAlert } from "./services/stockWatch.js";
 import type { Suggestion } from "./services/suggestions.js";
 import { productCategorySchema } from "./schemas/product.js";
 import { buyerDid, issueMandate, type Mandate } from "./services/mandates.js";
+import type { AutonomySettings } from "./services/autonomy.js";
+import { seededTrackRecords } from "./data/trackRecord.js";
 
 /** The demo agent's limit: €1,400.00, so €1,390.00 passes and €1,454.00 needs approval. */
 export const DEMO_SPENDING_LIMIT_EUR_CENTS = 140000;
@@ -32,10 +34,17 @@ export interface StoreOptions {
   spendingLimitEurCents?: number;
   /** Overrides parts of the demo agent's policy, for tests. */
   policy?: Partial<Omit<AgentPolicy, "agentId" | "agentName">>;
+  /**
+   * "earned" (the default): agents start supervised and earn autonomy per category.
+   * "limits": agents order alone within their other rules. Tests of a single rule use it.
+   */
+  autonomy?: AutonomySettings["mode"];
 }
 
 function initialState(_options: StoreOptions) {
   return {
+    /** Each agent's track record per product category, from which it earns autonomy. A demo reset restores it. */
+    trackRecords: seededTrackRecords(),
     /** Products with live price and availability, fetched from Valio Aimo for what agents and buyers looked up. */
     products: [] as Product[],
     /** Sales units ordered here per product. The mock APIs take no orders, so these are subtracted from the stock Valio Aimo reports. */
@@ -100,6 +109,7 @@ export function createStore(options: StoreOptions = {}) {
         requiredLabels: [],
         requiredAttributes: { milk: ["lactose-free"] },
         nutritionMinimums: {},
+        autonomy: { mode: options.autonomy ?? "earned", approvalsToEarn: 3 },
         ...options.policy,
       },
     ],
@@ -118,6 +128,8 @@ export function createStore(options: StoreOptions = {}) {
         requiredAttributes: {},
         // A milk alternative for children must be fortified with calcium.
         nutritionMinimums: { "plant-based": { calciumMg: 100, appliesTo: ["drink", "juoma"] } },
+        // Children's allergies: the school agent needs a longer run of approvals before it acts alone.
+        autonomy: { mode: options.autonomy ?? "earned", approvalsToEarn: 5 },
       },
     ],
   ]);
@@ -144,7 +156,7 @@ function defaultValio(): ValioClient {
   sharedValio = apiKey
     ? createHttpValio({ apiKey, baseUrl: config.VALIO_API_URL })
     : {
-        stats: { calls: 0, productsRequested: 0, cacheHits: 0, failures: 0 },
+        stats: { calls: 0, productsRequested: 0, cacheHits: 0, failures: 0, rateLimited: 0 },
         lookup: () => Promise.reject(new ValioUnavailableError("VALIO_API_KEY is not set")),
       };
   return sharedValio;

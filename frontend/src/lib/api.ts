@@ -96,7 +96,7 @@ export interface SupplierReliability {
   flagged: boolean;
 }
 
-export type StockStatus = "counted" | "plenty" | "unconfirmed" | "none";
+export type StockStatus = "counted" | "unknown" | "unconfirmed" | "none";
 
 /** A Valio Aimo product with the price and availability its APIs returned for the delivery date. */
 export interface Product {
@@ -190,6 +190,8 @@ export interface Quote {
     decision: "within_limit" | "needs_approval" | "created_by_buyer";
     limitEurCents: number | null;
     reason: string;
+    /** The same reason in Finnish. */
+    reasonFi?: string;
     checks: GuardrailCheck[];
   };
   deliveryDate: string;
@@ -222,7 +224,7 @@ export interface Suggestion {
   pitch: string;
   pricePerPackageEurCents: number;
   status: "suggested" | "held_back" | "quoted" | "dismissed";
-  screening: { suitable: boolean; reason: string; checks: GuardrailCheck[] };
+  screening: { suitable: boolean; reason: string; reasonFi?: string; checks: GuardrailCheck[] };
   quoteId?: string;
 }
 
@@ -288,6 +290,53 @@ export async function revokeMandate(id: string): Promise<Mandate> {
 /** Checks a mandate from the token alone, as any supplier or agent could. */
 export async function verifyMandate(token: string): Promise<MandateCheck> {
   return request("/api/mandates/verify", { method: "POST", body: JSON.stringify({ token }) });
+}
+
+export type TrackEvent = "seeded" | "approved" | "rejected" | "refused" | "granted" | "revoked";
+
+/** One product category of an agent's earned autonomy. */
+export interface CategoryAutonomy {
+  category: ProductCategory;
+  status: "earned" | "supervised";
+  capEurCents: number | null;
+  approvalsInRow: number;
+  approvalsToEarn: number;
+  earnedBy: "approvals" | "buyer" | null;
+  totals: { approvals: number; rejections: number; refusals: number };
+  lastReset?: { at: string; reason: string };
+  history: { at: string; event: TrackEvent; quoteId?: string; amountEurCents?: number; note: string }[];
+  explanation: string;
+}
+
+export interface AgentAutonomy {
+  agentId: string;
+  agentName: string;
+  buyerName: string;
+  mode: "earned" | "limits";
+  approvalsToEarn: number;
+  spendingLimitEurCents: number;
+  categories: CategoryAutonomy[];
+}
+
+export async function fetchAutonomy(signal?: AbortSignal): Promise<{ agents: AgentAutonomy[] }> {
+  return request("/api/autonomy", { signal: signal ?? null });
+}
+
+/** Grants the agent autonomy in a category, up to its policy limit unless a lower cap is given. */
+export async function grantAutonomy(agentId: string, category: ProductCategory, capEurCents?: number): Promise<CategoryAutonomy> {
+  const body = await request<{ category: CategoryAutonomy }>(
+    `/api/autonomy/${encodeURIComponent(agentId)}/categories/${encodeURIComponent(category)}/grant`,
+    { method: "POST", body: JSON.stringify(capEurCents ? { capEurCents } : {}) },
+  );
+  return body.category;
+}
+
+export async function revokeAutonomy(agentId: string, category: ProductCategory): Promise<CategoryAutonomy> {
+  const body = await request<{ category: CategoryAutonomy }>(
+    `/api/autonomy/${encodeURIComponent(agentId)}/categories/${encodeURIComponent(category)}/revoke`,
+    { method: "POST", body: JSON.stringify({}) },
+  );
+  return body.category;
 }
 
 export interface Trend {
@@ -372,6 +421,7 @@ export interface Alternative {
   supplier: string;
   verdict: "chosen" | "not_chosen" | "excluded";
   reason: string;
+  reasonFi?: string;
 }
 
 export interface WholesalerActivity {
@@ -391,7 +441,7 @@ export interface WholesalerActivity {
     accessDenied: number;
     toolRefused: number;
   }[];
-  waiting: { quoteId: string; agentName: string; buyerName: string | null; totalEurCents: number; reason: string }[];
+  waiting: { quoteId: string; agentName: string; buyerName: string | null; totalEurCents: number; reason: string; reasonFi?: string }[];
   attention: (AuditEntry & { buyerName: string | null })[];
   entries: (AuditEntry & { buyerName: string | null })[];
 }
@@ -408,6 +458,8 @@ export interface AuditEntry {
   action: string;
   summary: string;
   reason?: string;
+  /** The summary and reason in Finnish, written by the server. */
+  fi?: { summary: string; reason?: string };
   quoteId?: string;
   relatedQuoteId?: string;
   orderId?: string;
@@ -467,9 +519,15 @@ export interface GuardrailCheck {
     | "required_attributes"
     | "nutrition"
     | "standing_order_drift"
-    | "wholesaler_suggestion";
+    | "wholesaler_suggestion"
+    | "mandate"
+    | "allergen_declaration"
+    | "stock_confirmation"
+    | "earned_autonomy";
   outcome: "passed" | "needs_approval" | "blocked";
   detail: string;
+  /** The same detail in Finnish. */
+  detailFi?: string;
 }
 
 export async function fetchOrders(signal?: AbortSignal): Promise<Order[]> {
@@ -489,8 +547,10 @@ export interface StockAlert {
   buyerName: string;
   productId: string;
   productName: string;
+  productNameFi?: string;
   supplier: string;
   problem: string;
+  problemFi?: string;
   affects: {
     dishes: { dish: string; role: string }[];
     plannedOrder?: { name: string; deliveryDate: string; packages: number };
@@ -502,14 +562,17 @@ export interface StockAlert {
       tier: string;
       productId: string;
       productName: string;
+      productNameFi?: string;
       supplier: string;
       packages: number;
       costEurCents: number;
       deliveryDate: string;
       tradeOff: string;
+      tradeOffFi?: string;
     };
     ruledOut: { productId: string; productName: string; reason: string }[];
     note: string;
+    noteFi?: string;
   }[];
   status: "open" | "resolved";
   resolvedAt?: string;
@@ -550,6 +613,7 @@ export interface SubstitutesResult {
   policy: { agentId: string; buyerName: string } | null;
   /** Set when nothing qualifies: what to do instead. */
   nextStep?: string;
+  nextStepFi?: string;
   requested: { productId: string; packages: number; quantity: Quantity; unmet: string[] };
   substitutes: {
     tier: "best" | "better" | "good";
@@ -563,11 +627,12 @@ export interface SubstitutesResult {
     matchScore: number;
     matchNotes: string[];
     tradeOff: string;
+    tradeOffFi?: string;
     /** Each part of the server's ranking, 0 to 100, and the weighted total that set the tier. */
     scores: { similarity: number; price: number; preference: number; availability: number; combined: number };
     scoreNotes: { price: string; preference: string; availability: string };
   }[];
-  excluded: { productId: string; supplier: string; reasons: string[] }[];
+  excluded: { productId: string; supplier: string; reasons: string[]; reasonsFi?: string[] }[];
 }
 
 /** Good, better, and best substitutes for a product that cannot fill a request. */
@@ -664,6 +729,7 @@ export type AgentStep =
       httpStatus: number;
       ok: boolean;
       summary: string;
+      summaryFi?: string;
       quoteId?: string;
       orderId?: string;
       /** For calls that produced or refused a quote: the server's decision and every rule it checked. */

@@ -75,8 +75,8 @@ export function GuardrailChecks({ checks }: { checks: GuardrailCheck[] }) {
           </span>
           <span className="guardrail-rule">{t(`rule.${check.rule}`)}</span>
           {/* The server explains each check in English; in Finnish the verdict is shown, with the server's words on hover. */}
-          <span className="guardrail-detail" title={language === "en" ? undefined : check.detail}>
-            {language === "en" ? check.detail : t(`check.${check.outcome}`)}
+          <span className="guardrail-detail" title={language === "en" || check.detailFi ? undefined : check.detail}>
+            {language === "en" ? check.detail : (check.detailFi ?? t(`check.${check.outcome}`))}
           </span>
         </li>
       ))}

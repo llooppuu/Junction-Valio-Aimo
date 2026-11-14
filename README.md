@@ -9,6 +9,7 @@ It runs on **Valio Aimo's challenge material**: the 17,546-product data file, de
 - **Lookup, in two steps.** A search runs over Valio Aimo's product data, then only the best matches (20 by default, 50 at most) get live price and availability, as the organizers ask. Every answer is a signed offer that any agent can verify.
 - **Inquiry to order at a fixed price.** A quote locks Valio Aimo's price per sales unit and records the delivery date, order cut-off, VAT, and stock status. The order asks Valio Aimo again just before committing, and an order can never be placed twice.
 - **Permissions and human approval.** Each kitchen's rules live on the server: spending and daily limits, allergens that block outright, required attributes, labels, nutrition, suppliers, and products without an allergen declaration. Each agent acts under a buyer-signed mandate, a W3C Verifiable Credential that the buyer can revoke at once.
+- **Earned autonomy.** An agent starts supervised: a person approves its orders, as Valio Aimo's buyers do today. It earns the right to order alone one product category at a time, after a run of the buyer's approvals and only up to the largest total the buyer approved there. A rejection or a blocked attempt resets the run, and the buyer can grant or revoke any category.
 - **Exceptions.** Order cut-offs, sales blocks, products Valio Aimo cannot deliver, partial stock, and supplier-warehouse stock that cannot be confirmed are all handled and explained. Substitutes follow recipe logic: chopped tomatoes can replace cherry tomatoes in a sauce but not in a salad, and salmon can be topped up with salmon, never herring.
 - **Traceability.** Every step, refusal, and decision is in an append-only audit history in plain language, for the kitchen and for Valio Aimo.
 
@@ -57,6 +58,21 @@ In Windows PowerShell 5.1, use `curl.exe` instead of `curl`.
 | `OPENAI_MODEL`, `OPENAI_REASONING_EFFORT` | `gpt-5.5` and `low` by default |
 | `AGENT_TOKEN`, `SCHOOL_AGENT_TOKEN`, `BUYER_TOKEN`, `WHOLESALER_TOKEN` | Demo tokens. The AI agents send their own; the Vite proxy adds the buyer's and the wholesaler's |
 | `BACKEND_PORT` | The backend's port, 3001 by default |
+| `PORT`, `FRONTEND_DIST` | Production hosting: the port the platform gives, and the built frontend the backend then serves itself |
+
+## Deploy with Docker
+
+One container serves the API and the frontend on one port, so it runs on any host that runs Docker images.
+
+```bash
+# Build, with Valio Aimo's catalog built into the image. The key is a BuildKit secret, never stored in a layer.
+docker build --secret id=valio_api_key,env=VALIO_API_KEY -t trusted-trade-agents .
+
+# Run with your settings as environment variables.
+docker run --env-file .env -p 8080:8080 trusted-trade-agents
+```
+
+The app is then at <http://localhost:8080>. Without the build secret, the container builds the catalog on its first start from `VALIO_API_KEY`, which needs about 1 GB of memory. The browser app acts as the buyer, so set your own values for the demo tokens before you expose it.
 
 ## Project structure
 
@@ -68,6 +84,8 @@ backend/         Express API: catalog search, offers, quotes, orders, rules, man
 frontend/        React + Vite buyer and wholesaler app
   src/           Components, helpers and styles
 .env.example     Configuration template, copy it to .env
+docs/            How it works, the API, trust and controls, scenarios, deployment
+Dockerfile       One container for the API and the frontend
 package.json     npm workspaces and the root commands
 ```
 
@@ -75,10 +93,14 @@ package.json     npm workspaces and the root commands
 
 | Criterion | Where to look |
 | --- | --- |
-| Working end-to-end demo | The brief's request, from plain language to a fixed-price order on Valio Aimo's live data |
-| Solving the buyer's need precisely | Filters from the request, cheapest per litre that meets every rule and the date, partial stock kept, substitutes by recipe role |
-| Autonomy and controls | Server-side rules, approval queue, signed mandates, signed offers, and the audit history, with adversarial tests in `backend/test/adversarial.test.ts` |
-| Robustness to exceptions | Order cut-offs, sales blocks, missing stock, partial availability, and outages of Valio Aimo's APIs |
-| Openness and a path to production | Open standards for mandates and signed offers, and an OpenAPI document for every endpoint |
+| Working end-to-end demo | [Scenarios](docs/scenarios.md#the-briefs-request-end-to-end): the brief's request, from plain language to an order on Valio Aimo's live data |
+| Solving the buyer's need precisely | Requirements read from the request and checked on the server, the cheapest offer per litre that meets every rule and the date, and every alternative recorded with the reason |
+| Autonomy and controls | [Trust and controls](docs/trust-and-controls.md): server-side rules, signed mandates, earned autonomy, the approval queue, the audit history, and eleven adversarial tests |
+| Robustness to exceptions | [Valio Aimo integration](docs/valio-integration.md) and [Scenarios](docs/scenarios.md#exceptions-beyond-the-happy-path): cut-offs, sales blocks, unknown and partial availability, changed stock, rate limits, and outages |
+| Openness and a path to production | [Standards and the path to production](docs/standards-and-production.md): open standards, every assumption, and next steps |
+
+## Documentation
+
+[docs/](docs/README.md) explains the [architecture](docs/architecture.md), the [API](docs/api.md), [trust and controls](docs/trust-and-controls.md), the [Valio Aimo integration](docs/valio-integration.md), [demo scenarios](docs/scenarios.md), [standards and the path to production](docs/standards-and-production.md), and [deployment](docs/deployment.md). The full API contract is at `/api/openapi.json`.
 
 The product data is the organizers' and may be used only within Junction 2026.

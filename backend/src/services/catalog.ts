@@ -64,8 +64,8 @@ export function signProductOffer(product: Product, now?: Date): SignedOffer {
   );
 }
 
-/** True when stock does not limit an order: plenty, or delivered from the supplier's own warehouse. */
-export const unlimitedStock = (product: Product) => product.stockStatus === "plenty" || product.stockStatus === "unconfirmed";
+/** True when stock does not limit an order: Valio Aimo does not report the amount, or the supplier confirms it. */
+export const unlimitedStock = (product: Product) => product.stockStatus === "unknown" || product.stockStatus === "unconfirmed";
 
 /** Total stock in the product's own unit, for example 120 cases of 20 L is 2,400 L. */
 export function availableQuantity(product: Product): Quantity | null {

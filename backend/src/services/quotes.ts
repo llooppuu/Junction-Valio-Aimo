@@ -9,6 +9,9 @@ import type { StandingOrderReview } from "./standingOrders.js";
 import { consideredAlternatives, type Alternative } from "./alternatives.js";
 import type { MenuPlan } from "./menuPlan.js";
 import { recordAudit } from "./audit.js";
+import { ATTRIBUTE_FI, fiDate, fiEur, fiList, fiQuantity } from "../i18n.js";
+import { recordApproval, recordSetback } from "./autonomy.js";
+import type { ProductCategory } from "../schemas/product.js";
 import { comparableIds } from "./market.js";
 import {
   checkPermission,
@@ -192,11 +195,30 @@ export function createQuote(store: Store, input: CreateQuoteInput, principal: Pr
         action: blocked ? "quote.blocked" : "quote.refused",
         summary: `${blocked ? "Blocked" : "Refused"} a quote for ${input.lines.map((line) => line.productId).join(", ")}.`,
         reason: error.message,
+        fi: {
+          summary: `${blocked ? "Estettiin" : "Hylättiin"} tarjous tuotteille ${input.lines.map((line) => line.productId).join(", ")}.`,
+          reason: refusalReasonFi(error),
+        },
         ...(input.replacesQuoteId ? { relatedQuoteId: input.replacesQuoteId } : {}),
       });
     }
     throw error;
   }
+}
+
+/** Why a quote request was refused, in Finnish, from the kind of refusal. */
+function refusalReasonFi(error: ApiError): string {
+  const extra = error.extra as { blocked?: boolean; mandate?: boolean; unmet?: unknown; packagesNeeded?: number; productId?: string };
+  if (extra.blocked) return "Ostajan allergeenisääntö esti tarjouksen. Tätä ei voi hyväksyä.";
+  if (extra.mandate) return "Tarjous on ostajan allekirjoittaman valtuutuksen ulkopuolella.";
+  if (extra.unmet) return "Tuote ei täytä tarjouksen vaatimuksia.";
+  if (extra.packagesNeeded !== undefined) return "Saldo ei riitä pyydettyyn määrään.";
+  if (error.status === 404 || (error.status === 422 && extra.productId)) return "Tuotetta ei löydy tai sille ei ole voimassa olevia tietoja.";
+  return "Palvelin hylkäsi tarjouspyynnön.";
+}
+
+function describeLinesFi(lines: QuoteLine[]): string {
+  return fiList(lines.map((line) => `${line.packages} myyntierää (${fiQuantity(line.quantity)}), toimittaja ${line.supplier}`));
 }
 
 function describeLines(lines: QuoteLine[]): string {
@@ -234,7 +256,14 @@ function buildQuote(store: Store, input: CreateQuoteInput, principal: Principal,
 
   const totalEurCents = lines.reduce((sum, line) => sum + line.lineTotalEurCents, 0);
   // Checked before the quote is numbered, so a refused or blocked quote takes no number.
-  const permission = checkPermission(store, principal, products, totalEurCents, options.extraChecks);
+  const permission = checkPermission(
+    store,
+    principal,
+    products,
+    totalEurCents,
+    options.extraChecks,
+    lines.map((line) => line.lineTotalEurCents),
+  );
 
   const quote: Quote = {
     id: `Q-${String(store.nextQuoteNumber++).padStart(4, "0")}`,
@@ -269,6 +298,10 @@ function buildQuote(store: Store, input: CreateQuoteInput, principal: Principal,
     quoteId: quote.id,
     summary: `Created quote ${quote.id} for ${formatEur(quote.totalEurCents)}: ${describeLines(lines)}.`,
     ...(requirements ? { reason: `Requirements: ${describeRequirements(requirements)}.` } : {}),
+    fi: {
+      summary: `Tehtiin tarjous ${quote.id} (${fiEur(quote.totalEurCents)}): ${describeLinesFi(lines)}.`,
+      ...(requirements ? { reason: `Vaatimukset: ${describeRequirementsFi(requirements)}.` } : {}),
+    },
   });
   if (replaced) {
     recordAudit(store, principal, {
@@ -280,6 +313,13 @@ function buildQuote(store: Store, input: CreateQuoteInput, principal: Principal,
         replaced.status === "rejected"
           ? "The buyer rejected the original quote, so the agent prepared an alternative."
           : "The original quote was out of date because stock had changed.",
+      fi: {
+        summary: `Tarjous ${replaced.id} korvattiin tarjouksella ${quote.id}.`,
+        reason:
+          replaced.status === "rejected"
+            ? "Ostaja hylkäsi alkuperäisen tarjouksen, joten agentti valmisteli vaihtoehdon."
+            : "Alkuperäinen tarjous vanheni, koska saldo muuttui.",
+      },
     });
   }
   recordAudit(store, principal, {
@@ -287,6 +327,7 @@ function buildQuote(store: Store, input: CreateQuoteInput, principal: Principal,
     quoteId: quote.id,
     summary: PERMISSION_SUMMARIES[permission.decision](quote.id),
     reason: permission.reason,
+    fi: { summary: PERMISSION_SUMMARIES_FI[permission.decision](quote.id), reason: permission.reasonFi },
   });
   return quote;
 }
@@ -296,6 +337,19 @@ const PERMISSION_SUMMARIES: Record<PermissionDecision, (id: string) => string> =
   needs_approval: (id) => `Quote ${id} needs the buyer's approval.`,
   created_by_buyer: (id) => `Quote ${id} was created by the buyer.`,
 };
+
+const PERMISSION_SUMMARIES_FI: Record<PermissionDecision, (id: string) => string> = {
+  within_limit: (id) => `Tarjous ${id} on agentin rajojen sisällä.`,
+  needs_approval: (id) => `Tarjous ${id} tarvitsee ostajan hyväksynnän.`,
+  created_by_buyer: (id) => `Ostaja teki tarjouksen ${id}.`,
+};
+
+function describeRequirementsFi({ attributes, deliverBy }: Requirements): string {
+  return [
+    ...(attributes?.length ? [attributes.map((attribute) => ATTRIBUTE_FI[attribute] ?? attribute).join(", ")] : []),
+    ...(deliverBy ? [`toimitus ${fiDate(deliverBy)} mennessä`] : []),
+  ].join(", ");
+}
 
 function describeRequirements({ attributes, deliverBy }: Requirements): string {
   return [
@@ -315,6 +369,12 @@ export function markOutOfDate(store: Store, quote: Quote, shortfalls: Shortfall[
     reason: shortfalls
       .map((item) => `${describeQuantity(item.missingQuantity)} missing from ${item.supplier} (${item.availablePackages} of ${item.packagesNeeded} packages left)`)
       .join("; "),
+    fi: {
+      summary: `Tarjous ${quote.id} on vanhentunut.`,
+      reason: shortfalls
+        .map((item) => `toimittajalta ${item.supplier} puuttuu ${fiQuantity(item.missingQuantity)} (jäljellä ${item.availablePackages}/${item.packagesNeeded} myyntierää)`)
+        .join("; "),
+    },
   });
 }
 
@@ -390,6 +450,12 @@ export function recheckQuote(store: Store, id: string, principal: Principal) {
         quote.status === "out_of_date"
           ? `Rechecked quote ${quote.id}: it is still out of date.`
           : `Rechecked quote ${quote.id}: stock still covers every line.`,
+      fi: {
+        summary:
+          quote.status === "out_of_date"
+            ? `Tarjous ${quote.id} tarkistettiin uudelleen: se on yhä vanhentunut.`
+            : `Tarjous ${quote.id} tarkistettiin uudelleen: saldo riittää yhä jokaiselle riville.`,
+      },
     });
   }
 
@@ -434,8 +500,27 @@ export function decideQuote(
     quoteId: quote.id,
     summary: `${input.decision === "approve" ? "Approved" : "Rejected"} quote ${quote.id} for ${formatEur(quote.totalEurCents)}.`,
     ...(input.note ? { reason: input.note } : {}),
+    fi: {
+      summary: `${input.decision === "approve" ? "Hyväksyttiin" : "Hylättiin"} tarjous ${quote.id} (${fiEur(quote.totalEurCents)}).`,
+      ...(input.note ? { reason: input.note } : {}),
+    },
   });
+  updateTrackRecord(store, quote, input.decision, principal, input.note);
   return quote;
+}
+
+/** The buyer's decision on an agent's quote is what the agent earns, or loses, autonomy from. */
+function updateTrackRecord(store: Store, quote: Quote, decision: "approve" | "reject", principal: Principal, note?: string) {
+  if (quote.createdBy.role !== "agent") return;
+  const policy = store.policies.get(quote.createdBy.id);
+  if (!policy) return;
+  const byCategory = new Map<ProductCategory, number>();
+  for (const line of quote.lines) {
+    const category = findProduct(store, line.productId)?.category ?? store.catalog.byId.get(line.productId)?.category;
+    if (category) byCategory.set(category, (byCategory.get(category) ?? 0) + line.lineTotalEurCents);
+  }
+  if (decision === "approve") recordApproval(store, principal, policy, byCategory, quote.id);
+  else recordSetback(store, principal, policy, byCategory.keys(), "rejected", note ? `Rejected by the buyer: ${note}` : `The buyer rejected quote ${quote.id}.`, quote.id);
 }
 
 export function getQuote(store: Store, id: string): Quote {

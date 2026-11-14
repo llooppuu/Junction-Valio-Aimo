@@ -10,6 +10,7 @@ import { getLanguage, tr } from "./i18n";
 export function permissionReason(quote: Pick<Quote, "permission" | "totalEurCents">): string {
   const { permission } = quote;
   if (getLanguage() === "en") return permission.reason;
+  if (permission.reasonFi) return permission.reasonFi;
   if (permission.decision === "within_limit") return tr("reason.within");
   if (permission.decision === "created_by_buyer") return tr("reason.buyer");
 
@@ -32,14 +33,40 @@ const PHRASES: [RegExp, (...parts: string[]) => string][] = [
   [/^Valio Aimo cannot deliver it on any date$/, () => "Valio Aimo ei voi toimittaa sitä millekään päivälle"],
   [/^Valio Aimo has blocked its sales for now$/, () => "Valio Aimo on toistaiseksi estänyt sen myynnin"],
   [/^Valio Aimo has no price for it$/, () => "Valio Aimolla ei ole sille hintaa"],
-  [/^none available for (d{4})-(d{2})-(d{2})$/, (_all, year, month, day) => `ei saatavilla ${Number(day)}.${Number(month)}.${year}`],
+  [/^Valio Aimo did not report its availability$/, () => "Valio Aimo ei ilmoittanut sen saatavuutta"],
+  [/^none available for (\d{4})-(\d{2})-(\d{2})$/, (_all, year, month, day) => `ei saatavilla ${Number(day)}.${Number(month)}.${year}`],
   [/^none available$/, () => "ei saatavilla"],
   [
-    /^the order cut-off for delivery on (d{4})-(d{2})-(d{2}) was (.+)$/,
-    (_all, year, month, day, time) => `toimitukselle ${Number(day)}.${Number(month)}.${year} tilausaika päättyi (${time})`,
+    /^the order cut-off for delivery on (\d{4})-(\d{2})-(\d{2}) was (.+)$/,
+    (_all, year, month, day, time) => `toimitukselle ${Number(day)}.${Number(month)}.${year} tilausaika päättyi ${finnishTime(time)}`,
   ],
   [/^allergens not declared by the manufacturer$/, () => "valmistaja ei ole ilmoittanut allergeeneja"],
 ];
+
+const WEEKDAYS_FI: Record<string, string> = {
+  Monday: "maanantaina",
+  Tuesday: "tiistaina",
+  Wednesday: "keskiviikkona",
+  Thursday: "torstaina",
+  Friday: "perjantaina",
+  Saturday: "lauantaina",
+  Sunday: "sunnuntaina",
+};
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/** The server's "Thursday 12 November at 15:00" as "torstaina 12.11. klo 15.00". */
+function finnishTime(text: string): string {
+  const match = /^(\w+) (\d{1,2}) (\w+) at (\d{2}):(\d{2})$/.exec(text);
+  if (!match) return `(${text})`;
+  const [, weekday = "", day = "", month = "", hour = "", minute = ""] = match;
+  const monthNumber = MONTHS.indexOf(month) + 1;
+  return `${WEEKDAYS_FI[weekday] ?? weekday} ${Number(day)}.${monthNumber || month}. klo ${hour}.${minute}`;
+}
+
+/** Text the server wrote in both languages: its Finnish when Finnish is selected, otherwise its English. */
+export function localized(english: string, finnish: string | undefined): string {
+  return getLanguage() === "fi" && finnish ? finnish : english;
+}
 
 export function serverPhrase(text: string): string {
   if (getLanguage() === "en") return text;

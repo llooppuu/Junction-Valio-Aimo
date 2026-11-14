@@ -3,7 +3,7 @@ import type { StockAlert } from "../lib/api";
 import { formatEuroCents, formatLongDate } from "../lib/format";
 import { tr, useI18n } from "../lib/i18n";
 import { dishName, personName, productName, roleName } from "../lib/names";
-import { serverPhrase } from "../lib/reasons";
+import { localized, serverPhrase } from "../lib/reasons";
 
 
 /** What the agent should do with an alert when the buyer hands it over, in the buyer's language. */
@@ -52,14 +52,14 @@ export function StockAlerts({
         {tn("alerts.heading.one", open.length)}
       </h2>
       {open.map((alert) => {
-        const product = productName(alert.productId, alert.productName);
+        const product = productName(alert.productId, localized(alert.productName, alert.productNameFi));
         const planned = alert.affects.plannedOrder;
         return (
           <article key={alert.id} className="stock-alert">
             <p className="stock-alert-title">
               {alert.problem === "out of stock"
                 ? t("alerts.outOfStock", { product, supplier: alert.supplier })
-                : t("alerts.problem", { product, supplier: alert.supplier, problem: alert.problem })}
+                : t("alerts.problem", { product, supplier: alert.supplier, problem: localized(alert.problem, alert.problemFi) })}
               <span className="stock-alert-id">{alert.id}</span>
             </p>
             <p className="stock-alert-affects">
@@ -87,16 +87,16 @@ export function StockAlerts({
                   {proposal.substitute ? (
                     <>
                       {t("alerts.proposes", {
-                        product: productName(proposal.substitute.productId, proposal.substitute.productName),
+                        product: productName(proposal.substitute.productId, localized(proposal.substitute.productName, proposal.substitute.productNameFi)),
                         supplier: proposal.substitute.supplier,
                         count: proposal.substitute.packages,
                         amount: formatEuroCents(proposal.substitute.costEurCents),
                         date: formatLongDate(proposal.substitute.deliveryDate),
                       })}
-                      <span className="stock-alert-tradeoff">{proposal.substitute.tradeOff}</span>
+                      <span className="stock-alert-tradeoff">{localized(proposal.substitute.tradeOff, proposal.substitute.tradeOffFi)}</span>
                     </>
                   ) : (
-                    proposal.note
+                    localized(proposal.note, proposal.noteFi)
                   )}
                 </li>
               ))}

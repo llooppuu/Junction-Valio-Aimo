@@ -4,6 +4,7 @@ import { alertsQuerySchema } from "./routes/alerts.js";
 import { renewStandingOrderSchema } from "./routes/standingOrders.js";
 import { quoteSuggestionSchema, suggestionsQuerySchema } from "./routes/suggestions.js";
 import { issueMandateSchema, verifyMandateSchema } from "./routes/mandates.js";
+import { grantAutonomySchema, revokeAutonomySchema } from "./routes/autonomy.js";
 import { auditQuerySchema } from "./routes/audit.js";
 import { verifyOfferSchema } from "./routes/offers.js";
 import { placeOrderSchema } from "./routes/orders.js";
@@ -377,6 +378,32 @@ export const OPERATIONS: Operation[] = [
     roles: [],
     body: verifyMandateSchema,
     responses: { "200": "The verification result and status", ...COMMON_ERRORS },
+  },
+  {
+    method: "get",
+    path: "/api/autonomy",
+    summary: "Earned autonomy: each agent's track record per product category, whether it may order alone there, and up to what total. An agent sees only its own",
+    tag: "Trust",
+    roles: ["agent", "buyer", "wholesaler"],
+    responses: { "200": "Each agent's autonomy settings and categories", ...AUTH_ERRORS },
+  },
+  {
+    method: "post",
+    path: "/api/autonomy/{agentId}/categories/{category}/grant",
+    summary: "Grant an agent autonomy in a category directly, up to a total no higher than its policy limit. Only the buyer can",
+    tag: "Trust",
+    roles: ["buyer"],
+    body: grantAutonomySchema,
+    responses: { "200": "The category's new status", "404": "Unknown agent or category", "422": "Above the agent's policy limit", ...COMMON_ERRORS, ...AUTH_ERRORS },
+  },
+  {
+    method: "post",
+    path: "/api/autonomy/{agentId}/categories/{category}/revoke",
+    summary: "Take an agent's autonomy in a category back. It is supervised there until it earns it again",
+    tag: "Trust",
+    roles: ["buyer"],
+    body: revokeAutonomySchema,
+    responses: { "200": "The category's new status", "404": "Unknown agent or category", ...COMMON_ERRORS, ...AUTH_ERRORS },
   },
   { method: "get", path: "/api/openapi.json", summary: "This document", tag: "Service", roles: [], responses: { "200": "OpenAPI 3.1 document" } },
 ];

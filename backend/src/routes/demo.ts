@@ -18,6 +18,7 @@ export function demoRouter(store: Store) {
     recordAudit(store, currentPrincipal(res), {
       action: "demo.reset",
       summary: "Started over: quotes, orders, alerts, suggestions, and agent runs cleared.",
+      fi: { summary: "Aloitettiin alusta: tarjoukset, tilaukset, hälytykset, ehdotukset ja agentin ajot tyhjennettiin." },
     });
     res.json({ reset: true });
   });

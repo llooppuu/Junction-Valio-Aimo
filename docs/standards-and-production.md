@@ -1,0 +1,67 @@
+# Standards and the path to production
+
+The brief asks for an interface defined on open, verifiable standards rather than one platform's black box. This page lists the standards used, every assumption made, what the prototype leaves out, and how it would grow into a production system.
+
+## Open standards
+
+| Need | Standard | How it is used |
+| --- | --- | --- |
+| Describing the interface | OpenAPI 3.1 | `GET /api/openapi.json`, generated from the same Zod schemas the routes validate with. A test fails if a route is missing from it. |
+| Authenticating callers | OAuth 2.0 bearer tokens (RFC 6750) | Every caller sends `Authorization: Bearer`. The token maps to a role. |
+| Signed claims on price, stock, origin, and allergens | JWS (RFC 7515) with EdDSA over Ed25519 (RFC 8037) | Every product and quote offer is a compact JWS any agent can verify. |
+| Publishing the verification key | JWK Set (RFC 7517) at a well-known URI (RFC 8615) | `/.well-known/jwks.json`, with a key ID so keys can be rotated. |
+| The buyer's permission for an agent | W3C Verifiable Credentials, as VC-JWT | Each mandate is a credential with the agent's scope and limits. |
+| The buyer's identity | `did:key` (W3C Credentials Community Group) | The issuer's public key is inside its identifier, so a mandate verifies from the token alone. |
+| Allergens | EU Regulation 1169/2011 and GS1 allergen type codes | The 14 EU allergens, with the GS1 codes Valio Aimo's product data uses, in every product and its signed offer. |
+| Product identity | GTIN (GS1) | Each product carries its GTIN where Valio Aimo's data has one. |
+| Rate limiting | HTTP 429 and `Retry-After` (RFC 6585, RFC 9110) | Honoured towards Valio Aimo, and passed on to callers as `503` with `Retry-After`. |
+| Dates, money, countries | ISO 8601, ISO 4217 (EUR), ISO 3166-1 | Delivery dates and cut-offs, prices in euro cents, countries of origin. |
+
+The agent's 16 tools are thin wrappers over the public endpoints, described with JSON Schema. The same tool definitions can be served over the Model Context Protocol (MCP), so any MCP-capable agent can use the interface without custom code.
+
+## Assumptions
+
+| Assumption | Why |
+| --- | --- |
+| Products, prices, stock, delivery dates, cut-offs, delivery reliability, and carbon footprint are Valio Aimo's challenge data, unchanged. | Nothing about the products is invented. |
+| The kitchens, their rules, recipes, inventory, planned orders, order history, track records, and the wholesaler's launches are ours. | The challenge provides products, not customers. |
+| Prices are Valio Aimo's catalog price per sales unit, without VAT, for the requested delivery date. A quote fixes them. | The brief asks for fixed prices, not negotiation. |
+| Availability of 999,999 or more means unknown, and any quantity can be ordered; an empty amount means not available; 0.01 means one unit; `closingTime` is the cut-off for `availableDate`. | Clarified by the Valio Aimo team. |
+| There is no order API, so an order is recorded here for a person to hand on. | Clarified by the Valio Aimo team. |
+| Human approval is needed at the order step at first, and can be relaxed per category as an agent proves reliable. | Valio Aimo enforces no approval gates today; in an agentic setup a person should approve until reliability is shown. |
+| The daily limit equals the spending limit per quote. | Stops an agent splitting one purchase into several quotes under the limit. |
+| Delivery days and cut-offs are in Helsinki time. | Valio Aimo delivers in Finland. |
+| Earned autonomy needs 3 approvals in a row for the hotel and 5 for the school kitchen. | Children's allergies call for a longer track record. |
+
+## What the prototype leaves out
+
+- **State is in memory.** Quotes, orders, the audit history, and track records reset when the server restarts.
+- **Signing keys are created at start-up.** Offers signed before a restart no longer verify after it.
+- **Tokens are demo tokens** set in configuration, and the browser app acts as the buyer.
+- **One buyer organization with two kitchens**, and one wholesaler.
+- **No order is sent to Valio Aimo**, as its mock environment has no order API.
+
+## Path to production
+
+1. **Persistence and a tamper-evident history.** Store quotes, orders, and track records in PostgreSQL. Make the audit history append-only at the database level and chain each entry's hash to the previous one, so any edit is detectable.
+2. **Real identities for agents and people.** Agents authenticate with OAuth 2.0 client credentials and sender-constrained tokens (DPoP or mutual TLS); people sign in with the buyer organization's identity provider (OpenID Connect).
+3. **Key management.** Keep the signing keys in a key management service, rotate them, and keep old public keys in the JWK Set until their offers expire.
+4. **Mandate revocation others can check.** Publish revocations in a W3C Bitstring Status List, so a supplier or another agent can see that a mandate was revoked without asking this server.
+5. **An order API, and standard order documents.** When Valio Aimo opens order intake, an approved quote is sent there directly. Until then, and for other wholesalers, an order can be exported as a PEPPOL BIS Order (UBL 2.1).
+6. **The interface for any agent.** Serve the same tools over MCP and publish an agent card, so a buyer's existing assistant can work with Valio Aimo without integration work.
+7. **Trust from outcomes, not only approvals.** Feed delivery outcomes, credit notes, and complaints into earned autonomy, so a category is earned on what actually arrived, and lost when it did not.
+8. **Approvals where people are.** Notify the buyer on mobile or in the tools the kitchen already uses, with one-tap approve or reject and the reason attached.
+9. **Many buyers and wholesalers.** Separate tenants, per-tenant policies and keys, and Valio Aimo's view across all of them.
+10. **Operations.** Metrics on agent decisions, refusal rates, approval times, and Valio Aimo's API health; alerts when an agent's refusals spike.
+
+## Technical choices
+
+| Choice | Why |
+| --- | --- |
+| TypeScript end to end, strict mode | One language for API, agent, and interface; the type checker enforces that every audit entry and rule check has a Finnish sentence. |
+| Express 5 and Zod 4 | Small, widely known, and the schemas produce both validation and the OpenAPI document. |
+| Node's built-in crypto for Ed25519 | No third-party signing library to trust. |
+| React 19 and Vite | A fast buyer interface; the dev proxy keeps tokens out of the browser bundle. |
+| OpenAI GPT-5.5 with tool use | The agent reasons over a plain-language request and calls the public API; any tool-using model can replace it. |
+| Node's test runner on recorded answers | Fast tests that never call the live APIs, with scenarios and adversarial attacks as executable proof. |
+| One Docker container | Runs on any host; see [Deployment](deployment.md). |

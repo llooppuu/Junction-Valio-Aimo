@@ -48,7 +48,7 @@ describe("signed offers", () => {
     const claims = decode(token);
     assert.equal(claims.sub, "product:464306");
     assert.equal(claims.pricePerPackageEurCents, 101);
-    assert.equal(claims.stockStatus, "plenty");
+    assert.equal(claims.stockStatus, "unknown");
     assert.equal(claims.deliveryDate, "2026-11-16");
     assert.equal(claims.orderCutoff, "2026-11-15T17:00:00+0200");
     assert.deepEqual(claims.origin, { country: "FI" });

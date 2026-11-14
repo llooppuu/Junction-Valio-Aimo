@@ -36,7 +36,8 @@ export function fixtureCatalog(): CatalogEntry[] {
 
 /** A store on the fixture: the catalog slice, replayed answers, and a fixed clock. */
 export function testStore(options: StoreOptions = {}) {
-  return createStore({ catalog: FIXTURE_CATALOG, valio: recordedValio(), clock: () => new Date(FIXTURE_TIME), ...options });
+  // Each rule is tested on its own, so agents act within their limits unless a test asks for earned autonomy.
+  return createStore({ catalog: FIXTURE_CATALOG, valio: recordedValio(), clock: () => new Date(FIXTURE_TIME), autonomy: "limits", ...options });
 }
 
 /** The default demo tokens from backend/src/config.ts. */

@@ -8,6 +8,7 @@ import { DemoControls } from "./components/DemoControls";
 import { OrdersView } from "./components/OrdersView";
 import { Overview } from "./components/Overview";
 import { MandateCard } from "./components/MandateCard";
+import { AutonomyCard } from "./components/AutonomyCard";
 import { PolicyCard } from "./components/PolicyCard";
 import { ProductCatalog } from "./components/ProductCatalog";
 import { SiteFooter } from "./components/SiteFooter";
@@ -179,6 +180,7 @@ export function App() {
                 <ApprovalQueue key={`queue-${resets}`} version={version} onDecision={refresh} reliability={reliability} />
                 <PolicyCard policy={summary?.policies.find((policy) => policy.agentId === kitchen.agentId) ?? null} />
                 <MandateCard agentId={kitchen.agentId} version={version} onChange={refresh} />
+                <AutonomyCard agentId={kitchen.agentId} version={version} onChange={refresh} />
                 <ActivityLog
                   key={`feed-${resets}`}
                   version={version}
