@@ -18,3 +18,6 @@ Thumbs.db
 # Editor settings
 .idea/
 .vscode/
+
+# The catalog built from the organizers' data stays out of git
+backend/data/catalog.json

@@ -25,7 +25,7 @@ npm run data                # builds backend/data/catalog.json from the organize
 npm run dev
 ```
 
-`npm run data` reads the organizers' files from `All_new_data/` if they are there, and otherwise downloads them with `VALIO_API_KEY`. Neither the files nor the built catalog are in git.
+`npm run data` downloads the organizers' product, reliability, and carbon files with `VALIO_API_KEY` and keeps only the built catalog, which is not in git.
 
 | App | URL |
 | --- | --- |
