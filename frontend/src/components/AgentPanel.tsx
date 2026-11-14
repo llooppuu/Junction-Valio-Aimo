@@ -311,7 +311,13 @@ export function AgentPanel({ launch = null, onLaunched, agentId, agentName, onAc
           busy={busy}
           inputActions={
             agent.status === "on" && (
-              <VoiceInput draft={message} onDraft={setMessage} onDone={() => inputRef.current?.focus()} disabled={busy} />
+              <VoiceInput
+                draft={message}
+                onDraft={setMessage}
+                onDone={() => inputRef.current?.focus()}
+                onSend={(text) => void send(text)}
+                disabled={busy}
+              />
             )
           }
         />

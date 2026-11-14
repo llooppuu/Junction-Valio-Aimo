@@ -15,7 +15,7 @@ A three-minute talk built around a live demo, in the order of the judging criter
 | Time | Show | Say |
 | --- | --- | --- |
 | 0:00 | The agent workspace, empty | Kitchens' AI agents will soon buy on their own. Whether an agent can place an order isn't the hard part. What matters is whether Valio Aimo and the head chef can trust what it orders. We built the interface and the rules that make that trust checkable. |
-| 0:20 | Press **Speak** and say the brief's request: "We need 1,000 litres of lactose-free milk delivered on Monday." Press **Stop**, check the text, press **Send** | The head chef can type or speak, in English or Finnish. Nothing goes to the agent until they press Send. |
+| 0:20 | Press **Speak** and say the brief's request: "We need 1,000 litres of lactose-free milk delivered on Monday. Thank you." | The head chef can type or speak, in English or Finnish, hands free: "thank you" or "kiitos" at the end sends it. Pressing Stop instead leaves the words in the box to check first. |
 | 0:35 | The agent's steps as they appear | The agent first reads its own rules, then compares lactose-free milks that arrive by Monday, with live price and availability from Valio Aimo's APIs for only the best matches. Every step is a call to the same public API any outside agent would use. |
 | 0:55 | The quote waiting for approval | €1,010 at Valio Aimo's fixed price. Every rule passes, but the server, not the agent, decides it waits: this agent hasn't earned milk yet. |
 | 1:05 | The approval queue: rules checked, alternatives not chosen | The head chef sees why this milk, and why not the others. Approve. |
