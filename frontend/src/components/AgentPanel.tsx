@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   fetchAgentRun,
   fetchAgentRuns,
@@ -13,6 +13,7 @@ import type { MessageKey } from "../lib/messages";
 import { personName } from "../lib/names";
 import { MenuPlanTable } from "./MenuPlanTable";
 import { localized } from "../lib/reasons";
+import { RequestComposer } from "./RequestComposer";
 
 const POLL_INTERVAL_MS = 700;
 
@@ -78,10 +79,12 @@ interface AgentPanelProps {
   agentName: string;
   /** Called whenever the agent may have changed something, so other views refresh. */
   onActivity: () => void;
+  /** Opens the workspace's approval view without making the buyer scroll. */
+  onReviewApprovals?: () => void;
 }
 
 /** Lets the buyer hand requests to the AI agent and watch it work through the API. */
-export function AgentPanel({ launch = null, onLaunched, agentId, agentName, onActivity }: AgentPanelProps) {
+export function AgentPanel({ launch = null, onLaunched, agentId, agentName, onActivity, onReviewApprovals }: AgentPanelProps) {
   const { t, language } = useI18n();
   const [agent, setAgent] = useState<StatusState>({ status: "loading" });
   const [runs, setRuns] = useState<AgentRun[]>([]);
@@ -91,6 +94,7 @@ export function AgentPanel({ launch = null, onLaunched, agentId, agentName, onAc
   const onActivityRef = useRef(onActivity);
   onActivityRef.current = onActivity;
   const threadRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const launchedRef = useRef<number | null>(null);
   // Follows new steps unless the buyer has scrolled up to read something earlier.
   const followRef = useRef(true);
@@ -99,6 +103,18 @@ export function AgentPanel({ launch = null, onLaunched, agentId, agentName, onAc
     const thread = threadRef.current;
     if (thread && followRef.current) thread.scrollTop = thread.scrollHeight;
   }, [runs]);
+
+  // A hidden tab has no height. Follow the latest reply when it becomes visible
+  // or the mobile keyboard resizes the conversation, unless the buyer scrolled up.
+  useEffect(() => {
+    const thread = threadRef.current;
+    if (!thread) return;
+    const observer = new ResizeObserver(() => {
+      if (followRef.current && thread.clientHeight > 0) thread.scrollTop = thread.scrollHeight;
+    });
+    observer.observe(thread);
+    return () => observer.disconnect();
+  }, []);
 
   const last = runs.at(-1);
   const activeRunId = last?.status === "running" ? last.id : null;
@@ -175,132 +191,125 @@ export function AgentPanel({ launch = null, onLaunched, agentId, agentName, onAc
     }
   }
 
-  // Sends a handed-over request once, when the agent is ready and the restored thread is in place.
+  // Keep a handover pending until the restored conversation is ready and idle.
   useEffect(() => {
-    if (launch && agent.status === "on" && launchedRef.current !== launch.at) {
+    if (launch && agent.status === "on" && !busy && launchedRef.current !== launch.at) {
       launchedRef.current = launch.at;
+      setMessage(launch.message);
       onLaunched?.(launch.at);
       void send(launch.message);
     }
     // send reads the latest state on each render; the launch should fire only when these change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [launch, agent.status]);
-
-  function onSubmit(event: FormEvent) {
-    event.preventDefault();
-    void send(message);
-  }
+  }, [launch, agent.status, busy]);
 
   return (
     <section aria-labelledby="agent-heading" className="agent">
       <div className="section-header agent-header">
         <h2 id="agent-heading">{agentName}</h2>
-        {agent.status === "on" && <p className="agent-model">{agent.model}</p>}
+        {agent.status === "on" && <span className={`agent-status ${busy ? "agent-status-busy" : ""}`} role="status">{t(busy ? "agent.working" : "stat.idle")}</span>}
         {runs.length > 0 && !busy && (
-          <button type="button" className="button-secondary button-small" onClick={() => setRuns([])}>
+          <button type="button" className="button-secondary button-small" onClick={() => {
+            setRuns([]);
+            setMessage("");
+            setError(null);
+            followRef.current = true;
+            requestAnimationFrame(() => inputRef.current?.focus());
+          }}>
             {t("agent.newConversation")}
           </button>
         )}
       </div>
-      <p className="section-muted agent-intro">{t("agent.intro")}</p>
+      <div
+        ref={threadRef}
+        className="agent-thread"
+        tabIndex={0}
+        aria-label={t("agent.thread")}
+        onScroll={(event) => {
+          const thread = event.currentTarget;
+          followRef.current = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 80;
+        }}
+      >
+        {agent.status === "loading" && <p className="section-muted" role="status">{t("agent.checking")}</p>}
 
-      {agent.status === "loading" && <p className="section-muted">{t("agent.checking")}</p>}
+        {agent.status === "error" && (
+          <div role="alert" className="catalog-message catalog-message-error">
+            <h3>{t("agent.unreachable")}</h3>
+            <p className="catalog-message-detail">{agent.message}</p>
+          </div>
+        )}
 
-      {agent.status === "error" && (
-        <div role="alert" className="catalog-message catalog-message-error">
-          <h3>{t("agent.unreachable")}</h3>
-          <p className="catalog-message-detail">{agent.message}</p>
-        </div>
-      )}
+        {agent.status === "off" && (
+          <div className="agent-off">
+            <h3>{t("agent.offTitle")}</h3>
+            <p>{t("agent.offText")}</p>
+          </div>
+        )}
 
-      {agent.status === "off" && (
-        <div className="agent-off">
-          <h3>{t("agent.offTitle")}</h3>
-          <p>{t("agent.offText")}</p>
-        </div>
-      )}
+        {agent.status === "on" && (
+          <>
+            {runs.length === 0 && !busy && (
+              <div className="agent-empty">
+                <h3>{t("agent.emptyTitle")}</h3>
+                <p>{t("agent.emptyHint")}</p>
+                <div className="agent-example-chips" aria-label={t("agent.examples")}>
+                  {(EXAMPLES[agentId] ?? []).map((example) => (
+                    <button key={example.key} type="button" className="agent-example-chip" title={t(example.message)} onClick={() => {
+                      setMessage(t(example.message));
+                      inputRef.current?.focus({ preventScroll: true });
+                    }}>
+                      {t(example.title)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
-      {agent.status === "on" && (
-        <>
-          {runs.length === 0 && !busy && (
-            <div className="agent-examples" aria-label={t("agent.examples")}>
-              {(EXAMPLES[agentId] ?? []).map((example) => (
-                <button key={example.key} type="button" className="agent-example" onClick={() => void send(t(example.message))}>
-                  <span className="agent-example-title">{t(example.title)}</span>
-                  <span className="agent-example-message">“{t(example.message)}”</span>
-                  <span className="agent-example-note">{t(example.note)}</span>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {runs.length > 0 && (
-            <div
-              ref={threadRef}
-              className="agent-thread"
-              tabIndex={0}
-              aria-label={t("agent.thread")}
-              onScroll={(event) => {
-                const thread = event.currentTarget;
-                followRef.current = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 80;
-              }}
-            >
+            {runs.length > 0 && (
               <ol className="agent-runs">
                 {runs.map((run) => (
                   <li key={run.id}>
-                    <RunView run={run} latest={run.id === last?.id} />
+                    <RunView run={run} latest={run.id === last?.id} onReviewApprovals={onReviewApprovals} />
                   </li>
                 ))}
               </ol>
-            </div>
-          )}
+            )}
+          </>
+        )}
+      </div>
 
-          {error && (
-            <p role="alert" className="agent-error">
-              {error}
-            </p>
-          )}
+      <div className="agent-composer-area">
+        {error && (
+          <p role="alert" className="agent-error">
+            {error}
+          </p>
+        )}
 
-          {!busy && suggestionsFor(last, t).length > 0 && (
-            <div className="agent-suggestions" aria-label={t("agent.suggested")}>
-              {suggestionsFor(last, t).map((suggestion) => (
-                <button
-                  key={suggestion.message}
-                  type="button"
-                  className="agent-suggestion"
-                  onClick={() => void send(suggestion.message)}
-                >
-                  {suggestion.label}
-                </button>
-              ))}
-            </div>
-          )}
+        {!busy && suggestionsFor(last, t).length > 0 && (
+          <div className="agent-suggestions" aria-label={t("agent.suggested")}>
+            {suggestionsFor(last, t).map((suggestion) => (
+              <button
+                key={suggestion.message}
+                type="button"
+                className="agent-suggestion"
+                onClick={() => void send(suggestion.message)}
+              >
+                {suggestion.label}
+              </button>
+            ))}
+          </div>
+        )}
 
-          <form className="agent-form" onSubmit={onSubmit}>
-            <label htmlFor="agent-message" className="visually-hidden">
-              {t("agent.yourRequest")}
-            </label>
-            <textarea
-              id="agent-message"
-              rows={2}
-              maxLength={2000}
-              placeholder={runs.length === 0 ? t("agent.example") : t("agent.replyPlaceholder")}
-              value={message}
-              disabled={busy}
-              onChange={(event) => setMessage(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  void send(message);
-                }
-              }}
-            />
-            <button type="submit" className="button-primary" disabled={busy || !message.trim()}>
-              {busy ? t("agent.working") : t("agent.send")}
-            </button>
-          </form>
-        </>
-      )}
+        <RequestComposer
+          inputRef={inputRef}
+          value={message}
+          onChange={setMessage}
+          onSubmit={() => void send(message)}
+          placeholder={runs.length === 0 ? t("agent.inputPlaceholder") : t("agent.replyPlaceholder")}
+          disabled={agent.status !== "on"}
+          busy={busy}
+        />
+      </div>
     </section>
   );
 }
@@ -316,8 +325,8 @@ function StepList({ steps }: { steps: AgentStep[] }) {
   );
 }
 
-/** One request and the agent's work. Earlier runs fold their steps away so the thread stays short. */
-function RunView({ run, latest }: { run: AgentRun; latest: boolean }) {
+/** One request and the agent's work. Completed runs fold their steps away so the thread stays short. */
+function RunView({ run, latest, onReviewApprovals }: { run: AgentRun; latest: boolean; onReviewApprovals?: () => void }) {
   const { t, tn } = useI18n();
   const calls = run.steps.filter((step) => step.kind === "tool_call");
   const refused = calls.filter((step) => step.kind === "tool_call" && !step.ok).length;
@@ -344,7 +353,7 @@ function RunView({ run, latest }: { run: AgentRun; latest: boolean }) {
           (run.status === "running" ? (
             <StepList steps={run.steps} />
           ) : (
-            <details className="agent-steps-fold" open={latest}>
+            <details className="agent-steps-fold">
               <summary>
                 {tn("agent.calls.one", calls.length)}
                 {refused > 0 && <span className="agent-steps-refused"> · {t("agent.refused", { count: refused })}</span>}
@@ -368,6 +377,11 @@ function RunView({ run, latest }: { run: AgentRun; latest: boolean }) {
               </p>
             )}
             <p className="agent-reply">{run.reply}</p>
+            {latest && run.outcome === "awaiting_approval" && onReviewApprovals && (
+              <button type="button" className="button-secondary button-small agent-review" onClick={onReviewApprovals}>
+                {t("dash.review")}
+              </button>
+            )}
           </>
         )}
 

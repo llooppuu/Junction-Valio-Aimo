@@ -2,23 +2,23 @@
   color-scheme: light;
 
   /* Brand: deep teal, a lime call to action, and soft lavender and mist bands. */
-  --brand-teal: #00546f;
-  --brand-teal-dark: #003c50;
-  --brand-lime: #c6e021;
-  --brand-lime-dark: #b2cb12;
-  --brand-lavender: #ede7f3;
-  --brand-mist: #f2f5f7;
+  --brand-teal: #005670;
+  --brand-teal-dark: #003747;
+  --brand-lime: #c1df16;
+  --brand-lime-dark: #afca12;
+  --brand-lavender: #eee8f5;
+  --brand-mist: #f2f7f8;
 
-  --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-  --font-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --font-body: "Matter", "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-display: "National", "Barlow Condensed", "Arial Narrow", sans-serif;
   --font-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
 
-  --color-background: #f4f6f8;
+  --color-background: #fffcf4;
   --color-surface: #ffffff;
   --color-text: #1c2b33;
   --color-text-muted: #51616a;
   --color-border: #d6dde2;
-  --color-accent: #00546f;
+  --color-accent: #005670;
   --color-accent-soft: #e1eef3;
   --color-danger: #b0281c;
   --color-danger-soft: #fbe9e6;
@@ -26,7 +26,7 @@
   --color-warning-soft: #fdf2df;
   --color-border-strong: #aebbc3;
   --color-skeleton: #e8edf0;
-  --color-header: #00546f;
+  --color-header: #005670;
   --color-header-text: #ffffff;
   --color-header-muted: #b8d3dd;
 
@@ -96,7 +96,7 @@ ul {
 .page {
   flex: 1;
   width: 100%;
-  max-width: 82rem;
+  max-width: 94rem;
   margin: 0 auto;
   padding: clamp(1.25rem, 3vw, 2rem) clamp(1rem, 4vw, 2.5rem) 3rem;
 }
