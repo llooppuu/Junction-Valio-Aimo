@@ -67,7 +67,7 @@ export interface TestServer {
  * The AI agent is off unless a test passes a model, so tests never call OpenAI.
  */
 export async function startTestServer(options: AppOptions = {}): Promise<TestServer> {
-  const server = createApp({ agentModel: null, ...options, store: options.store ?? testStore() }).listen(0, "127.0.0.1");
+  const server = createApp({ agentModel: null, voiceTokens: null, ...options, store: options.store ?? testStore() }).listen(0, "127.0.0.1");
   await once(server, "listening");
   const { port } = server.address() as AddressInfo;
   const baseUrl = `http://127.0.0.1:${port}`;

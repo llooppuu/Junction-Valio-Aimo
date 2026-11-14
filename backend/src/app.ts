@@ -16,6 +16,8 @@ import { suggestionsRouter } from "./routes/suggestions.js";
 import { mandatesRouter } from "./routes/mandates.js";
 import { autonomyRouter } from "./routes/autonomy.js";
 import { mcpRouter } from "./routes/mcp.js";
+import { voiceRouter } from "./routes/voice.js";
+import { geminiVoiceTokens, type VoiceTokens } from "./services/voice.js";
 import { allergensRouter } from "./routes/allergens.js";
 import { auditRouter } from "./routes/audit.js";
 import { demoRouter } from "./routes/demo.js";
@@ -46,6 +48,8 @@ export interface AppOptions {
    * buyer's or wholesaler's demo token, as the Vite proxy adds them in development.
    */
   frontendDist?: string;
+  /** Voice input's Gemini Live sessions. By default from GEMINI_API_KEY, or null (voice off) without one. */
+  voiceTokens?: VoiceTokens | null;
 }
 
 function defaultAgentModel(): AgentModel | null {
@@ -55,6 +59,10 @@ function defaultAgentModel(): AgentModel | null {
     model: config.OPENAI_MODEL,
     reasoningEffort: config.OPENAI_REASONING_EFFORT,
   });
+}
+
+function defaultVoiceTokens(): VoiceTokens | null {
+  return config.GEMINI_API_KEY ? geminiVoiceTokens(config.GEMINI_API_KEY, config.GEMINI_LIVE_MODEL) : null;
 }
 
 export interface ApiRoute {
@@ -76,7 +84,7 @@ function routesOf(base: string, router: Router): ApiRoute[] {
   );
 }
 
-export function createApp({ store = createStore(), agentModel = defaultAgentModel(), frontendDist }: AppOptions = {}) {
+export function createApp({ store = createStore(), agentModel = defaultAgentModel(), frontendDist, voiceTokens = defaultVoiceTokens() }: AppOptions = {}) {
   const app = express();
   app.disable("x-powered-by");
   app.use(express.json({ limit: "100kb" }));
@@ -110,6 +118,7 @@ export function createApp({ store = createStore(), agentModel = defaultAgentMode
     ["/api/policy", policyRouter(store)],
     ["/api/demo", demoRouter(store)],
     ["/api/agent", agentRouter(store, agentModel)],
+    ["/api/voice", voiceRouter(store, voiceTokens)],
     ["/api/wholesaler", wholesalerRouter(store)],
     ["/api/recipes", recipesRouter(store)],
     ["/api/inventory", inventoryRouter(store)],

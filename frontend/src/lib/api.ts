@@ -760,6 +760,30 @@ export async function fetchAgentStatus(signal?: AbortSignal): Promise<AgentStatu
   return request<AgentStatus>("/api/agent", { signal: signal ?? null });
 }
 
+export interface VoiceStatus {
+  available: boolean;
+  model: string | null;
+}
+
+/** A single-use Gemini Live session for dictating one request. */
+export interface VoiceSession {
+  token: string;
+  model: string;
+  apiVersion: string;
+  languageCode: string;
+  connectBefore: string;
+  expiresAt: string;
+}
+
+export async function fetchVoiceStatus(signal?: AbortSignal): Promise<VoiceStatus> {
+  return request<VoiceStatus>("/api/voice", { signal: signal ?? null });
+}
+
+export async function createVoiceSession(language: "en" | "fi"): Promise<VoiceSession> {
+  const body = await request<{ session: VoiceSession }>("/api/voice/token", { method: "POST", body: JSON.stringify({ language }) });
+  return body.session;
+}
+
 /** Hands a request to the AI agent. The run starts at once and is followed with fetchAgentRun. */
 export async function startAgentRun(
   message: string,

@@ -13,7 +13,7 @@ It runs on **Valio Aimo's challenge material**: the 17,546-product data file, de
 - **Exceptions.** Order cut-offs, sales blocks, products Valio Aimo cannot deliver, partial stock, and supplier-warehouse stock that cannot be confirmed are all handled and explained. Substitutes follow recipe logic: chopped tomatoes can replace cherry tomatoes in a sauce but not in a salad, and salmon can be topped up with salmon, never herring.
 - **Traceability.** Every step, refusal, and decision is in an append-only audit history in plain language, for the kitchen and for Valio Aimo.
 
-An AI agent on GPT-5.5 runs the whole flow from a request in plain language, using only the public API with its own credentials. It gets no special treatment.
+An AI agent on GPT-5.5 runs the whole flow from a request in plain language, using only the public API with its own credentials. It gets no special treatment. The head chef can type the request or say it: the microphone button beside Send transcribes speech in English or Finnish with Gemini Live, and the words land in the request box to check before sending.
 
 MCP clients can use the interface too: `npm run mcp` starts a local MCP process, and a running app answers MCP at `POST /api/mcp`. Each tool call is forwarded to the REST API with the agent's token, so the same checks apply. See [docs/mcp.md](docs/mcp.md).
 
@@ -60,6 +60,8 @@ In Windows PowerShell 5.1, use `curl.exe` instead of `curl`.
 | `VALIO_API_URL` | The APIs' address, `https://junction26.valioaimo.fi` by default |
 | `OPENAI_API_KEY` | Turns on the AI agent. The key stays on the server |
 | `OPENAI_MODEL`, `OPENAI_REASONING_EFFORT` | `gpt-5.5` and `low` by default |
+| `GEMINI_API_KEY` | Turns on voice input in the agent workspace. The key stays on the server; the browser gets a single-use token per request |
+| `GEMINI_LIVE_MODEL` | The Gemini Live model that transcribes speech, `gemini-2.5-flash-native-audio-preview-09-2025` by default |
 | `AGENT_TOKEN`, `SCHOOL_AGENT_TOKEN`, `BUYER_TOKEN`, `WHOLESALER_TOKEN` | Demo tokens. The AI agents send their own; the Vite proxy adds the buyer's and the wholesaler's |
 | `BACKEND_PORT` | The backend's port, 3001 by default |
 | `PORT`, `FRONTEND_DIST` | Production hosting: the port the platform gives, and the built frontend the backend then serves itself |

@@ -31,6 +31,8 @@ Set these as environment variables on the platform. Never bake them into the ima
 | `VALIO_API_URL` | No | `https://junction26.valioaimo.fi` by default |
 | `OPENAI_API_KEY` | For the AI agent | Without it the agent is off and everything else still works |
 | `OPENAI_MODEL`, `OPENAI_REASONING_EFFORT` | No | `gpt-5.5` and `low` by default |
+| `GEMINI_API_KEY` | For voice input | Without it the microphone button is hidden and typing works as before |
+| `GEMINI_LIVE_MODEL` | No | `gemini-2.5-flash-native-audio-preview-09-2025` by default |
 | `AGENT_TOKEN`, `SCHOOL_AGENT_TOKEN`, `BUYER_TOKEN`, `WHOLESALER_TOKEN` | Yes, when exposed | Set your own values of at least 8 characters before the app is reachable from the internet |
 | `PORT` | Set by the image | The port to listen on; platforms usually set it |
 | `FRONTEND_DIST` | Set by the image | Where the built frontend is; when set, the server serves it and adds the demo tokens to browser requests |
@@ -42,6 +44,7 @@ Set these as environment variables on the platform. Never bake them into the ima
 ## Before exposing it publicly
 
 - **The browser app acts as the buyer.** In production, the server adds the buyer's token to browser requests without a token of their own (and the wholesaler's under `/api/wholesaler`), as the development proxy does. Anyone who can open the app can act as the head chef. For a public demo that is intended; for real use, put the app behind the buyer organization's sign-in.
+- **The microphone needs HTTPS.** Browsers allow microphone access only on `https://` pages and on `localhost`. Most platforms serve HTTPS already; behind your own proxy, terminate TLS there.
 - **Agents keep their own tokens.** A request that brings its own bearer token keeps it, so an external agent is always treated as an agent.
 - **Keys stay on the server.** The Valio Aimo and OpenAI keys are read only by the backend and never sent to a browser or an agent.
 - **Serve over HTTPS.** Platforms terminate TLS in front of the container; a virtual machine needs a reverse proxy that does.

@@ -14,6 +14,7 @@ import { personName } from "../lib/names";
 import { MenuPlanTable } from "./MenuPlanTable";
 import { localized } from "../lib/reasons";
 import { RequestComposer } from "./RequestComposer";
+import { VoiceInput } from "./VoiceInput";
 
 const POLL_INTERVAL_MS = 700;
 
@@ -308,6 +309,11 @@ export function AgentPanel({ launch = null, onLaunched, agentId, agentName, onAc
           placeholder={runs.length === 0 ? t("agent.inputPlaceholder") : t("agent.replyPlaceholder")}
           disabled={agent.status !== "on"}
           busy={busy}
+          inputActions={
+            agent.status === "on" && (
+              <VoiceInput draft={message} onDraft={setMessage} onDone={() => inputRef.current?.focus()} disabled={busy} />
+            )
+          }
         />
       </div>
     </section>

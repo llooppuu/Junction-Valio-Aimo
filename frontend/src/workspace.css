@@ -303,6 +303,71 @@
   white-space: nowrap;
 }
 
+.request-composer-actions {
+  position: relative;
+}
+
+.voice-input {
+  justify-content: center;
+  min-height: 2.75rem;
+  white-space: nowrap;
+}
+
+.voice-input.is-listening {
+  border-color: var(--brand-teal);
+  background: var(--brand-teal);
+  color: #fff;
+  animation: voice-input-pulse 1.4s ease-in-out infinite;
+}
+
+.voice-input-spinner {
+  animation: voice-input-spin 0.9s linear infinite;
+}
+
+.voice-input-error {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 0.5rem);
+  width: max-content;
+  max-width: min(22rem, 60vw);
+  transform: translateY(-50%);
+  padding: 0.25rem 0.5rem;
+  background: var(--color-surface, #fff);
+  font-size: 0.8125rem;
+  color: var(--color-danger, #b42318);
+  text-align: right;
+}
+
+/* On a phone the buttons fill the row, so the notice sits above them, over the request box. */
+@media (max-width: 40rem) {
+  .voice-input-error {
+    top: auto;
+    right: 0;
+    bottom: calc(100% + 0.25rem);
+    max-width: calc(100vw - 2rem);
+    transform: none;
+  }
+}
+
+@keyframes voice-input-pulse {
+  50% {
+    box-shadow: 0 0 0 0.375rem rgb(0 86 112 / 0.2);
+  }
+}
+
+@keyframes voice-input-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-input.is-listening,
+  .voice-input-spinner {
+    animation: none;
+  }
+}
+
 .workspace-drawer {
   position: fixed;
   inset: 0 0 0 auto;

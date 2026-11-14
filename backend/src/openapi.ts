@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { startRunSchema } from "./routes/agent.js";
+import { voiceTokenSchema } from "./routes/voice.js";
 import { alertsQuerySchema } from "./routes/alerts.js";
 import { renewStandingOrderSchema } from "./routes/standingOrders.js";
 import { quoteSuggestionSchema, suggestionsQuerySchema } from "./routes/suggestions.js";
@@ -242,6 +243,22 @@ export const OPERATIONS: Operation[] = [
   },
   { method: "get", path: "/api/agent/runs", summary: "List agent runs, newest first", tag: "Agent", roles: ["buyer"], responses: { "200": "Runs", ...AUTH_ERRORS } },
   { method: "get", path: "/api/agent/runs/{id}", summary: "Read one run and its steps", tag: "Agent", roles: ["buyer"], responses: { "200": "The run", "404": "Unknown run", ...AUTH_ERRORS } },
+  { method: "get", path: "/api/voice", summary: "Whether voice input is on, and its Gemini Live model", tag: "Agent", roles: ["buyer"], responses: { "200": "Status", ...AUTH_ERRORS } },
+  {
+    method: "post",
+    path: "/api/voice/token",
+    summary: "A single-use Gemini Live token for dictating one request. The browser streams speech to Gemini with it and gets a transcript back; the Gemini key never leaves the server",
+    tag: "Agent",
+    roles: ["buyer"],
+    body: voiceTokenSchema,
+    responses: {
+      "201": "The session: token, model, language, and expiry",
+      "502": "Gemini did not issue a token",
+      "503": "No Gemini key is configured",
+      ...COMMON_ERRORS,
+      ...AUTH_ERRORS,
+    },
+  },
   {
     method: "get",
     path: "/api/wholesaler/activity",
