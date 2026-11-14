@@ -11,7 +11,6 @@ node_modules
 
 # The organizers' data is built into the image only through `npm run data`
 backend/data
-All_new_data
 
 # Not needed to build or run
 .git

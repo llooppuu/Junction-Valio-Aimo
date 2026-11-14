@@ -84,6 +84,7 @@ backend/         Express API: catalog search, offers, quotes, orders, rules, man
 frontend/        React + Vite buyer and wholesaler app
   src/           Components, helpers and styles
 .env.example     Configuration template, copy it to .env
+docs/            How it works, the API, trust and controls, scenarios, deployment
 Dockerfile       One container for the API and the frontend
 package.json     npm workspaces and the root commands
 ```
@@ -92,10 +93,14 @@ package.json     npm workspaces and the root commands
 
 | Criterion | Where to look |
 | --- | --- |
-| Working end-to-end demo | The brief's request, from plain language to a fixed-price order on Valio Aimo's live data |
-| Solving the buyer's need precisely | Filters from the request, cheapest per litre that meets every rule and the date, partial stock kept, substitutes by recipe role |
-| Autonomy and controls | Server-side rules, approval queue, signed mandates, signed offers, and the audit history, with adversarial tests in `backend/test/adversarial.test.ts` |
-| Robustness to exceptions | Order cut-offs, sales blocks, missing stock, partial availability, and outages of Valio Aimo's APIs |
-| Openness and a path to production | Open standards for mandates and signed offers, and an OpenAPI document for every endpoint |
+| Working end-to-end demo | [Scenarios](docs/scenarios.md#the-briefs-request-end-to-end): the brief's request, from plain language to an order on Valio Aimo's live data |
+| Solving the buyer's need precisely | Requirements read from the request and checked on the server, the cheapest offer per litre that meets every rule and the date, and every alternative recorded with the reason |
+| Autonomy and controls | [Trust and controls](docs/trust-and-controls.md): server-side rules, signed mandates, earned autonomy, the approval queue, the audit history, and eleven adversarial tests |
+| Robustness to exceptions | [Valio Aimo integration](docs/valio-integration.md) and [Scenarios](docs/scenarios.md#exceptions-beyond-the-happy-path): cut-offs, sales blocks, unknown and partial availability, changed stock, rate limits, and outages |
+| Openness and a path to production | [Standards and the path to production](docs/standards-and-production.md): open standards, every assumption, and next steps |
+
+## Documentation
+
+[docs/](docs/README.md) explains the [architecture](docs/architecture.md), the [API](docs/api.md), [trust and controls](docs/trust-and-controls.md), the [Valio Aimo integration](docs/valio-integration.md), [demo scenarios](docs/scenarios.md), [standards and the path to production](docs/standards-and-production.md), and [deployment](docs/deployment.md). The full API contract is at `/api/openapi.json`.
 
 The product data is the organizers' and may be used only within Junction 2026.
