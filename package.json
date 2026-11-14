@@ -7,12 +7,19 @@
     "node": ">=22.12.0"
   },
   "workspaces": [
+    "backend",
     "frontend"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace frontend",
+    "dev": "concurrently --names backend,frontend --prefix-colors blue,green --kill-others-on-fail \"npm run dev --workspace backend\" \"npm run dev --workspace frontend\"",
+    "test": "npm run test --workspaces --if-present",
+    "test:adversarial": "npm run test:adversarial --workspace backend",
     "typecheck": "npm run typecheck --workspaces",
     "build": "npm run build --workspaces",
-    "preview": "npm run preview --workspace frontend"
+    "preview": "concurrently --names backend,frontend --prefix-colors blue,green --kill-others-on-fail \"npm run start --workspace backend\" \"npm run preview --workspace frontend\"",
+    "data": "npm run data --workspace backend"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.6"
   }
 }
