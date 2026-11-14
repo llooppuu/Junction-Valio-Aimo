@@ -25,6 +25,7 @@ export type AuditAction =
   | "suggestion.dismissed"
   | "mandate.issued"
   | "mandate.revoked"
+  | "autonomy.changed"
   | "demo.reset"
   | "agent.requested"
   | "agent.finished"

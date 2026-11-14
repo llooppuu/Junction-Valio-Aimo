@@ -290,6 +290,53 @@ export async function verifyMandate(token: string): Promise<MandateCheck> {
   return request("/api/mandates/verify", { method: "POST", body: JSON.stringify({ token }) });
 }
 
+export type TrackEvent = "seeded" | "approved" | "rejected" | "refused" | "granted" | "revoked";
+
+/** One product category of an agent's earned autonomy. */
+export interface CategoryAutonomy {
+  category: ProductCategory;
+  status: "earned" | "supervised";
+  capEurCents: number | null;
+  approvalsInRow: number;
+  approvalsToEarn: number;
+  earnedBy: "approvals" | "buyer" | null;
+  totals: { approvals: number; rejections: number; refusals: number };
+  lastReset?: { at: string; reason: string };
+  history: { at: string; event: TrackEvent; quoteId?: string; amountEurCents?: number; note: string }[];
+  explanation: string;
+}
+
+export interface AgentAutonomy {
+  agentId: string;
+  agentName: string;
+  buyerName: string;
+  mode: "earned" | "limits";
+  approvalsToEarn: number;
+  spendingLimitEurCents: number;
+  categories: CategoryAutonomy[];
+}
+
+export async function fetchAutonomy(signal?: AbortSignal): Promise<{ agents: AgentAutonomy[] }> {
+  return request("/api/autonomy", { signal: signal ?? null });
+}
+
+/** Grants the agent autonomy in a category, up to its policy limit unless a lower cap is given. */
+export async function grantAutonomy(agentId: string, category: ProductCategory, capEurCents?: number): Promise<CategoryAutonomy> {
+  const body = await request<{ category: CategoryAutonomy }>(
+    `/api/autonomy/${encodeURIComponent(agentId)}/categories/${encodeURIComponent(category)}/grant`,
+    { method: "POST", body: JSON.stringify(capEurCents ? { capEurCents } : {}) },
+  );
+  return body.category;
+}
+
+export async function revokeAutonomy(agentId: string, category: ProductCategory): Promise<CategoryAutonomy> {
+  const body = await request<{ category: CategoryAutonomy }>(
+    `/api/autonomy/${encodeURIComponent(agentId)}/categories/${encodeURIComponent(category)}/revoke`,
+    { method: "POST", body: JSON.stringify({}) },
+  );
+  return body.category;
+}
+
 export interface Trend {
   history: number[];
   mean: number;

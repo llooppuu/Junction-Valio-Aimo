@@ -43,6 +43,7 @@ describe("buyer guardrails beyond spending", () => {
       requiredLabels: [],
       requiredAttributes: { milk: ["lactose-free"] },
       nutritionMinimums: {},
+      autonomy: { mode: "limits", approvalsToEarn: 3 },
     });
   });
 

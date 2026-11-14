@@ -4,6 +4,7 @@ import { ApiError } from "../http.js";
 import type { Allergen, Label, Product, ProductCategory } from "../schemas/product.js";
 import type { Store } from "../store.js";
 import { acceptsUndeclared } from "../data/catalogMapping.js";
+import { earnedAutonomyCheck, recordSetback, totalsByCategory, type AutonomySettings } from "./autonomy.js";
 
 /** Minimum nutrition per 100 ml or 100 g, for example calcium in a school's milk alternative. */
 export interface NutritionMinimum {
@@ -39,6 +40,8 @@ export interface AgentPolicy {
   requiredAttributes: Partial<Record<ProductCategory, string[]>>;
   /** Soft rule per category, for example plant drinks need at least 100 mg calcium per 100 ml. */
   nutritionMinimums: Partial<Record<ProductCategory, NutritionMinimum>>;
+  /** Whether the agent must earn the right to order alone, category by category, from the buyer's approvals. */
+  autonomy: AutonomySettings;
 }
 
 export type PermissionDecision = "within_limit" | "needs_approval" | "created_by_buyer";
@@ -55,7 +58,8 @@ export type GuardrailRule =
   | "wholesaler_suggestion"
   | "mandate"
   | "allergen_declaration"
-  | "stock_confirmation";
+  | "stock_confirmation"
+  | "earned_autonomy";
 
 /** One rule applied to one quote, with its outcome in plain language. */
 export interface GuardrailCheck {
@@ -223,6 +227,8 @@ export function checkPermission(
   totalEurCents: number,
   /** Rules that apply to this kind of quote only, such as the drift check on a standing order renewal. */
   extraChecks: GuardrailCheck[] = [],
+  /** Each product's line total, in the same order, so earned autonomy can be checked per category. */
+  lineTotalsEurCents: number[] = products.map(() => totalEurCents / Math.max(1, products.length)),
 ): PermissionCheck {
   const checkedAt = new Date().toISOString();
 
@@ -248,6 +254,7 @@ export function checkPermission(
   if (!mandate) throw new ApiError(403, `Refused: ${principal.name} has no mandate from the buyer.`, { mandate: true });
   const outside = [...new Set(products.map((product) => product.category))].filter((category) => !mandate.allowedCategories.includes(category));
   if (outside.length > 0) {
+    recordSetback(store, principal, policy, outside, "refused", `Refused: outside the buyer's mandate ${mandate.id}.`);
     throw new ApiError(
       403,
       `Refused: ${outside.join(" and ")} ${outside.length === 1 ? "is" : "are"} outside the buyer's mandate ${mandate.id}, which allows ${mandate.allowedCategories.join(", ")}.`,
@@ -266,8 +273,13 @@ export function checkPermission(
         : `within the buyer's signed mandate ${mandate.id}, valid until ${mandate.expiresAt.slice(0, 10)}`,
   });
   checks.push(...extraChecks);
+  const autonomy = earnedAutonomyCheck(store, policy, totalsByCategory(products, lineTotalsEurCents));
+  if (autonomy) checks.push(autonomy);
   const blocked = checks.filter((check) => check.outcome === "blocked");
   if (blocked.length > 0) {
+    // An attempt the rules block costs the agent its run of approvals in those categories.
+    const conflicting = products.filter((product) => [...product.allergens, ...product.mayContain].some((allergen) => policy.excludedAllergens.includes(allergen)));
+    recordSetback(store, principal, policy, (conflicting.length > 0 ? conflicting : products).map((product) => product.category), "refused", `Blocked by the allergen rule: ${blocked.map((check) => check.detail).join("; ")}.`);
     throw new ApiError(
       422,
       `Blocked by ${policy.buyerName}'s allergen rule: ${blocked.map((check) => check.detail).join("; ")}. This cannot be approved. Choose a product that is free from ${list(policy.excludedAllergens)}.`,

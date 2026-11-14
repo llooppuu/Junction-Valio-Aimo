@@ -14,6 +14,7 @@ import { alertsRouter } from "./routes/alerts.js";
 import { standingOrdersRouter } from "./routes/standingOrders.js";
 import { suggestionsRouter } from "./routes/suggestions.js";
 import { mandatesRouter } from "./routes/mandates.js";
+import { autonomyRouter } from "./routes/autonomy.js";
 import { allergensRouter } from "./routes/allergens.js";
 import { auditRouter } from "./routes/audit.js";
 import { demoRouter } from "./routes/demo.js";
@@ -109,6 +110,7 @@ export function createApp({ store = createStore(), agentModel = defaultAgentMode
     ["/api/standing-orders", standingOrdersRouter(store)],
     ["/api/suggestions", suggestionsRouter(store)],
     ["/api/mandates", mandatesRouter(store)],
+    ["/api/autonomy", autonomyRouter(store)],
   ];
   for (const [path, router] of mounts) app.use(path, router);
   // Every route the app serves, for the test that keeps the OpenAPI document complete.

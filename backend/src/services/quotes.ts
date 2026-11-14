@@ -9,6 +9,8 @@ import type { StandingOrderReview } from "./standingOrders.js";
 import { consideredAlternatives, type Alternative } from "./alternatives.js";
 import type { MenuPlan } from "./menuPlan.js";
 import { recordAudit } from "./audit.js";
+import { recordApproval, recordSetback } from "./autonomy.js";
+import type { ProductCategory } from "../schemas/product.js";
 import { comparableIds } from "./market.js";
 import {
   checkPermission,
@@ -234,7 +236,14 @@ function buildQuote(store: Store, input: CreateQuoteInput, principal: Principal,
 
   const totalEurCents = lines.reduce((sum, line) => sum + line.lineTotalEurCents, 0);
   // Checked before the quote is numbered, so a refused or blocked quote takes no number.
-  const permission = checkPermission(store, principal, products, totalEurCents, options.extraChecks);
+  const permission = checkPermission(
+    store,
+    principal,
+    products,
+    totalEurCents,
+    options.extraChecks,
+    lines.map((line) => line.lineTotalEurCents),
+  );
 
   const quote: Quote = {
     id: `Q-${String(store.nextQuoteNumber++).padStart(4, "0")}`,
@@ -435,7 +444,22 @@ export function decideQuote(
     summary: `${input.decision === "approve" ? "Approved" : "Rejected"} quote ${quote.id} for ${formatEur(quote.totalEurCents)}.`,
     ...(input.note ? { reason: input.note } : {}),
   });
+  updateTrackRecord(store, quote, input.decision, principal, input.note);
   return quote;
+}
+
+/** The buyer's decision on an agent's quote is what the agent earns, or loses, autonomy from. */
+function updateTrackRecord(store: Store, quote: Quote, decision: "approve" | "reject", principal: Principal, note?: string) {
+  if (quote.createdBy.role !== "agent") return;
+  const policy = store.policies.get(quote.createdBy.id);
+  if (!policy) return;
+  const byCategory = new Map<ProductCategory, number>();
+  for (const line of quote.lines) {
+    const category = findProduct(store, line.productId)?.category ?? store.catalog.byId.get(line.productId)?.category;
+    if (category) byCategory.set(category, (byCategory.get(category) ?? 0) + line.lineTotalEurCents);
+  }
+  if (decision === "approve") recordApproval(store, principal, policy, byCategory, quote.id);
+  else recordSetback(store, principal, policy, byCategory.keys(), "rejected", note ? `Rejected by the buyer: ${note}` : `The buyer rejected quote ${quote.id}.`, quote.id);
 }
 
 export function getQuote(store: Store, id: string): Quote {
