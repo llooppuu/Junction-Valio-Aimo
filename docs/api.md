@@ -141,7 +141,7 @@ Valio Aimo's mock environment has no order API, so an order is recorded here, an
 | | `POST /api/quotes/{id}/decision` | buyer | Approve or reject a quote that needs approval |
 | | `GET /api/quotes/{id}/shortfall-options` | agent, buyer | Ranked ways to cover an out-of-date quote's shortfall |
 | | `POST /api/orders` | agent, buyer | Order an authorized quote; retrying returns the same order |
-| | `GET /api/orders`, `GET /api/orders/{id}` | agent, buyer | Orders, newest first |
+| | `GET /api/orders`, `GET /api/orders/{id}` | agent, buyer | Orders, newest first; an agent sees its own kitchen's |
 | | `GET /api/orders/{id}/ubl` | agent, buyer | The order as a PEPPOL BIS Order 3.0 document (UBL 2.1 XML) |
 | | `GET /api/policy` | agent, buyer, wholesaler | Purchasing policies, read-only; an agent sees its own |
 | Trust | `GET /.well-known/jwks.json` | public | The public key that signs offers (EdDSA, Ed25519) |
@@ -169,6 +169,7 @@ Valio Aimo's mock environment has no order API, so an order is recorded here, an
 | | `POST /api/agent/runs/{id}/cancel` | buyer | Cancel a run in progress; anything it already did is kept |
 | | `GET /api/voice` | buyer | Whether voice input is on, and its Gemini Live model |
 | | `POST /api/voice/token` | buyer | A single-use Gemini Live token for dictating one request, in `en` or `fi` |
+| | `GET /api/intake`, `POST /api/intake/list` | buyer | Read a photo or screenshot of a purchasing list (a data URL up to 4 MB) into request text to check and send; quotes and orders nothing |
 | Audit | `GET /api/audit` | buyer | The whole append-only audit history, newest first |
 | | `GET /api/quotes/{id}/audit` | agent, buyer | One quote's history, oldest first |
 | Wholesaler | `GET /api/wholesaler/activity` | wholesaler | Agent activity across every buyer: counts, waiting quotes, refused attempts |

@@ -158,3 +158,26 @@ describe("the API's answer when Valio Aimo's rate limit persists", () => {
     }
   });
 });
+
+describe("Valio Aimo client cache", () => {
+  it("answers a repeat lookup from its cache, and skips the cache when asked for a fresh answer", async () => {
+    const paths: string[] = [];
+    const respond = (path: string) =>
+      path.endsWith("/api/price")
+        ? { products: [{ productId: "1", catalogPrice: { value: 1, currency: "EUR" } }] }
+        : { timeNow: "2026-11-14T10:00:00+02:00", products: [{ productId: "1", salesBlock: false, scheduleLines: [] }] };
+    const valio = createHttpValio({
+      apiKey: "test",
+      fetchImpl: (async (url: string) => {
+        const path = new URL(url).pathname;
+        paths.push(path);
+        return new Response(JSON.stringify(respond(path)), { status: 200, headers: { "Content-Type": "application/json" } });
+      }) as typeof globalThis.fetch,
+    });
+    await valio.lookup(["1"], "2026-11-16");
+    await valio.lookup(["1"], "2026-11-16");
+    assert.equal(paths.length, 2, "the second lookup came from the cache");
+    await valio.lookup(["1"], "2026-11-16", { fresh: true });
+    assert.deepEqual(paths.slice(2).sort(), ["/api/availability", "/api/price"]);
+  });
+});

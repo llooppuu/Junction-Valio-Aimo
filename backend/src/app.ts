@@ -6,7 +6,6 @@ import express, {
 } from "express";
 import { ValioRateLimitedError, ValioUnavailableError } from "./services/valio.js";
 import type { AgentModel } from "./agent/model.js";
-import { createOpenAiModel } from "./agent/openai-model.js";
 import { config } from "./config.js";
 import { ApiError } from "./http.js";
 import { agentRouter } from "./routes/agent.js";
@@ -17,6 +16,9 @@ import { mandatesRouter } from "./routes/mandates.js";
 import { autonomyRouter } from "./routes/autonomy.js";
 import { mcpRouter } from "./routes/mcp.js";
 import { voiceRouter } from "./routes/voice.js";
+import { intakeRouter } from "./routes/intake.js";
+import type { ListReader } from "./services/listReader.js";
+import { defaultAgentModel, defaultListReader } from "./ai.js";
 import { geminiVoiceTokens, type VoiceTokens } from "./services/voice.js";
 import { allergensRouter } from "./routes/allergens.js";
 import { auditRouter } from "./routes/audit.js";
@@ -31,7 +33,8 @@ import { substitutesRouter } from "./routes/substitutes.js";
 import { suppliersRouter } from "./routes/suppliers.js";
 import { wholesalerRouter } from "./routes/wholesaler.js";
 import { inventoryRouter, recipesRouter } from "./routes/recipes.js";
-import { browserTokenMiddleware, serveFrontend } from "./web.js";
+import { browserTokenMiddleware, demoLoginHandler, serveFrontend, type DemoAccess } from "./web.js";
+import { optionalPrincipal } from "./auth.js";
 import { openApiDocument } from "./openapi.js";
 import { jwks } from "./services/signing.js";
 import { createStore, type Store } from "./store.js";
@@ -39,27 +42,23 @@ import { createStore, type Store } from "./store.js";
 export interface AppOptions {
   store?: Store;
   /**
-   * The AI agent's model. By default it is GPT from the OpenAI settings in
+   * The AI agent's model. By default GPT or Gemini, from the AI settings in
    * .env, or null (agent switched off) when no API key is set.
    */
   agentModel?: AgentModel | null;
   /**
-   * The built frontend to serve, in production. Browser requests without a token then get the
-   * buyer's or wholesaler's demo token, as the Vite proxy adds them in development.
+   * The built frontend to serve, in production. Browsers that opened the access link then act
+   * as the buyer (or the wholesaler), as the Vite proxy arranges in development.
    */
   frontendDist?: string;
+  /** The secret in the access link, /login?key=…. Required with frontendDist. Defaults to DEMO_ACCESS_KEY. */
+  demoAccessKey?: string;
   /** Voice input's Gemini Live sessions. By default from GEMINI_API_KEY, or null (voice off) without one. */
   voiceTokens?: VoiceTokens | null;
+  /** Reads photos of purchasing lists. By default GPT or Gemini from the AI settings, or null without a key. */
+  listReader?: ListReader | null;
 }
 
-function defaultAgentModel(): AgentModel | null {
-  if (!config.OPENAI_API_KEY) return null;
-  return createOpenAiModel({
-    apiKey: config.OPENAI_API_KEY,
-    model: config.OPENAI_MODEL,
-    reasoningEffort: config.OPENAI_REASONING_EFFORT,
-  });
-}
 
 function defaultVoiceTokens(): VoiceTokens | null {
   return config.GEMINI_API_KEY ? geminiVoiceTokens(config.GEMINI_API_KEY, config.GEMINI_LIVE_MODEL) : null;
@@ -84,10 +83,27 @@ function routesOf(base: string, router: Router): ApiRoute[] {
   );
 }
 
-export function createApp({ store = createStore(), agentModel = defaultAgentModel(), frontendDist, voiceTokens = defaultVoiceTokens() }: AppOptions = {}) {
+export function createApp({
+  store = createStore(),
+  agentModel = defaultAgentModel(),
+  frontendDist,
+  voiceTokens = defaultVoiceTokens(),
+  demoAccessKey = config.DEMO_ACCESS_KEY,
+  listReader = defaultListReader(),
+}: AppOptions = {}) {
+  // Without a key, a hosted app would have no safe way to tell the head chef's browser from anyone else.
+  if (frontendDist && !demoAccessKey) {
+    throw new Error("Set DEMO_ACCESS_KEY (at least 16 characters) to serve the frontend. People open the app with /login?key=<DEMO_ACCESS_KEY>.");
+  }
+  const access: DemoAccess | undefined =
+    frontendDist && demoAccessKey ? { key: demoAccessKey, buyerToken: config.BUYER_TOKEN, wholesalerToken: config.WHOLESALER_TOKEN } : undefined;
   const app = express();
+  // Behind a hosting platform's proxy, so the access cookie can be marked Secure on HTTPS.
+  app.set("trust proxy", 1);
   app.disable("x-powered-by");
-  app.use(express.json({ limit: "100kb" }));
+  // Small JSON bodies everywhere, except the route that takes a photo of a list and parses its own.
+  const jsonBody = express.json({ limit: "100kb" });
+  app.use((req, res, next) => (req.path === "/api/intake/list" ? next() : jsonBody(req, res, next)));
 
   // Routes registered directly on the app, so the route table below can list them too.
   const appRoutes: ApiRoute[] = [];
@@ -119,6 +135,7 @@ export function createApp({ store = createStore(), agentModel = defaultAgentMode
     ["/api/demo", demoRouter(store)],
     ["/api/agent", agentRouter(store, agentModel)],
     ["/api/voice", voiceRouter(store, voiceTokens)],
+    ["/api/intake", intakeRouter(store, listReader)],
     ["/api/wholesaler", wholesalerRouter(store)],
     ["/api/recipes", recipesRouter(store)],
     ["/api/inventory", inventoryRouter(store)],
@@ -129,7 +146,15 @@ export function createApp({ store = createStore(), agentModel = defaultAgentMode
     ["/api/autonomy", autonomyRouter(store)],
     ["/api/mcp", mcpRouter(store)],
   ];
-  if (frontendDist) app.use("/api", browserTokenMiddleware({ buyer: config.BUYER_TOKEN, wholesaler: config.WHOLESALER_TOKEN }));
+  if (access) {
+    app.get("/login", demoLoginHandler(access));
+    app.use("/api", browserTokenMiddleware(access));
+  }
+  // Who the caller is, so the browser app knows whether to show the sign-in screen.
+  get(["/api/session"], (req, res) => {
+    const principal = optionalPrincipal(store.principals, req);
+    res.json({ authenticated: principal !== undefined, role: principal?.role ?? null, accessLink: access !== undefined });
+  });
   for (const [path, router] of mounts) app.use(path, router);
   // Every route the app serves, for the test that keeps the OpenAPI document complete.
   app.locals.routes = [...appRoutes, ...mounts.flatMap(([path, router]) => routesOf(path, router))];

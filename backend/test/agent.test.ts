@@ -370,6 +370,33 @@ describe("cancelling a run", () => {
   });
 });
 
+describe("a list read from a photo", () => {
+  test("is restated for the buyer to confirm, with no tools, before the agent acts on it", async () => {
+    const { model, requests } = scriptedModel((request) =>
+      request.tools.length === 0
+        ? { text: "I read: - 20 L lactose-free milk - 5 kg butter. Is this list correct?" }
+        : { text: "Confirmed. Preparing the quote." },
+    );
+    server = await startTestServer({ agentModel: model });
+
+    const list = "Please order:\n- 20 L lactose-free milk\n- 5 kg butter";
+    const first = await server.request("POST", "/api/agent/runs", { token: BUYER, body: { message: list, kind: "list_photo" } });
+    assert.equal(first.status, 202, JSON.stringify(first.body));
+    const confirmation = await waitForRun(first.body.run.id);
+    assert.equal(confirmation.kind, "list_photo");
+    assert.equal(confirmation.outcome, "list_to_confirm");
+    assert.equal(requests[0]!.tools.length, 0, "nothing can be quoted or ordered before the buyer confirms");
+    assert.match(requests[0]!.instructions, /check it with the buyer/);
+    assert.match(requests[0]!.userMessage ?? "", /photo of a purchasing list[\s\S]*20 L lactose-free milk/);
+
+    // The buyer's confirmation continues the same conversation, with the agent's tools back.
+    const confirmed = await startRun({ message: "Yes, the list is correct. Go ahead.", conversationId: confirmation.conversationId });
+    assert.equal(confirmed.status, "completed");
+    assert.ok(requests.at(-1)!.tools.length > 0);
+    assert.equal(requests.at(-1)!.continuation, requests[0] && "turn-1");
+  });
+});
+
 describe("agent configuration", () => {
   test("the model name is public but the API key never leaves the server", async () => {
     const secret = "sk-test-do-not-leak-0123456789";

@@ -51,7 +51,8 @@ export interface ValioStats {
 
 export interface ValioClient {
   /** Price and availability for the named products on one requested delivery date. */
-  lookup(productIds: string[], requestedDate: string): Promise<ValioAnswer>;
+  /** With fresh, the cache is skipped: an order commits on Valio Aimo's answer now, not one from minutes ago. */
+  lookup(productIds: string[], requestedDate: string, options?: { fresh?: boolean }): Promise<ValioAnswer>;
   readonly stats: ValioStats;
 }
 
@@ -230,10 +231,10 @@ export function createHttpValio({
 
   return {
     stats,
-    async lookup(productIds, requestedDate) {
+    async lookup(productIds, requestedDate, options) {
       const ids = [...new Set(productIds)];
       const key = (id: string) => `${id}|${requestedDate}`;
-      const fresh = <T extends { at: number }>(entry: T | undefined, ttl: number) => entry && now() - entry.at < ttl;
+      const fresh = <T extends { at: number }>(entry: T | undefined, ttl: number) => !options?.fresh && entry && now() - entry.at < ttl;
 
       const needPrice = ids.filter((id) => !fresh(prices.get(key(id)), PRICE_TTL_MS));
       const needStock = ids.filter((id) => !fresh(stock.get(key(id)), AVAILABILITY_TTL_MS));

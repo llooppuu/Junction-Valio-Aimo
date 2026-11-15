@@ -7,13 +7,13 @@ It runs on **Valio Aimo's challenge material**: the 17,546-product data file, de
 ## What it does
 
 - **Lookup, in two steps.** A search runs over Valio Aimo's product data, then only the best matches (20 by default, 50 at most) get live price and availability, as the organizers ask. Every answer is a signed offer that any agent can verify.
-- **Inquiry to order at a fixed price.** A quote locks Valio Aimo's price per sales unit and records the delivery date, order cut-off, VAT, and stock status. The order asks Valio Aimo again just before committing, and an order can never be placed twice.
+- **Inquiry to order at a fixed price.** A quote locks Valio Aimo's price per sales unit and records the delivery date, order cut-off, VAT, and stock status. The order asks Valio Aimo afresh just before committing and checks the agent's current authority, the delivery date, the cut-off, and the quote's expiry again, and an order can never be placed twice.
 - **Permissions and human approval.** Each kitchen's rules live on the server: spending and daily limits, allergens that block outright, required attributes, labels, nutrition, suppliers, and products without an allergen declaration. Each agent acts under a buyer-signed mandate, a W3C Verifiable Credential that the buyer can revoke at once.
 - **Earned autonomy.** An agent starts supervised: a person approves its orders, as Valio Aimo's buyers do today. It earns the right to order alone one product category at a time, after a run of the buyer's approvals and only up to the largest total the buyer approved there. A rejection or a blocked attempt resets the run, and the buyer can grant or revoke any category.
 - **Exceptions.** Order cut-offs, sales blocks, products Valio Aimo cannot deliver, partial stock, and supplier-warehouse stock that cannot be confirmed are all handled and explained. Substitutes follow recipe logic: chopped tomatoes can replace cherry tomatoes in a sauce but not in a salad, and salmon can be topped up with salmon, never herring.
 - **Traceability.** Every step, refusal, and decision is in an append-only audit history in plain language, for the kitchen and for Valio Aimo.
 
-An AI agent on GPT-5.5 runs the whole flow from a request in plain language, using only the public API with its own credentials. It gets no special treatment. The head chef can type the request or say it: the microphone button beside Send transcribes speech in English or Finnish with Gemini Live, and the words land in the request box as they are spoken. Ending with “thank you” (or “kiitos”) sends the request at once; pressing Stop leaves it to check first.
+An AI agent on Gemini (or OpenAI GPT-5.5) runs the whole flow from a request in plain language, using only the public API with its own credentials. It gets no special treatment. The head chef can type the request or say it: the microphone button beside Send transcribes speech in English or Finnish with Gemini Live, and the words land in the request box as they are spoken. Ending with “thank you” (or “kiitos”) sends the request at once; pressing Stop leaves it to check first. A photo or screenshot of a purchasing list, handwritten or printed, can be added or pasted the same way: it goes straight to the agent, which restates the list and asks the head chef to confirm or correct it. That first reply runs without any tools, so nothing can be quoted or ordered until the head chef confirms.
 
 MCP clients can use the interface too: `npm run mcp` starts a local MCP process, and a running app answers MCP at `POST /api/mcp`. Each tool call is forwarded to the REST API with the agent's token, so the same checks apply. See [docs/mcp.md](docs/mcp.md).
 
@@ -23,7 +23,7 @@ You need **Node.js 22.12 or newer** and the challenge's **Valio Aimo API key**.
 
 ```bash
 npm install
-cp .env.example .env        # then set VALIO_API_KEY, and OPENAI_API_KEY for the AI agent
+cp .env.example .env        # then set VALIO_API_KEY, and GEMINI_API_KEY for the AI agent
 npm run data                # builds backend/data/catalog.json from the organizers' files
 npm run dev
 ```
@@ -44,7 +44,7 @@ In Windows PowerShell 5.1, use `curl.exe` instead of `curl`.
 | --- | --- |
 | `npm run dev` | Starts the backend and frontend with reloading |
 | `npm run data` | Builds the catalog from Valio Aimo's product, reliability, and carbon files |
-| `npm run embeddings` | Builds the index for search by meaning (needs `OPENAI_API_KEY` and the catalog; about a minute) |
+| `npm run embeddings` | Builds the index for search by meaning with Gemini or OpenAI, whichever the agent uses (needs the catalog; a few minutes) |
 | `npm run mcp` | Starts the MCP server over stdio for a local MCP client, using the running API |
 | `npm run smoke -- <url>` | Checks a running app before a demo: health, contract, live Valio Aimo offers, signatures, MCP, and which optional features are on. Read-only |
 | `npm test` | Runs the backend tests on recorded Valio Aimo answers, without calling the APIs |
@@ -59,13 +59,15 @@ In Windows PowerShell 5.1, use `curl.exe` instead of `curl`.
 | --- | --- |
 | `VALIO_API_KEY` | Valio Aimo's mock APIs. Without it the catalog can be searched, but nothing can be priced, quoted, or ordered |
 | `VALIO_API_URL` | The APIs' address, `https://junction26.valioaimo.fi` by default |
-| `OPENAI_API_KEY` | Turns on the AI agent. The key stays on the server |
-| `OPENAI_MODEL`, `OPENAI_REASONING_EFFORT` | `gpt-5.5` and `low` by default |
-| `GEMINI_API_KEY` | Turns on voice input in the agent workspace. The key stays on the server; the browser gets a single-use token per request |
+| `DATABASE_URL` | MariaDB, for example `mariadb://tta:password@localhost:3306/tta`. Quotes, orders, mandates, earned autonomy, agent runs, and the audit history then survive restarts. Without it, they live in memory |
+| `GEMINI_API_KEY` | Turns on the AI agent, reading photos of lists, search by meaning, and voice input. The key stays on the server; for voice, the browser gets a single-use token per request |
+| `GEMINI_MODEL`, `GEMINI_REASONING_EFFORT` | The agent's Gemini model and thinking level, `gemini-3.8-flash` and `low` by default |
+| `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_REASONING_EFFORT` | Or OpenAI for the agent, photos, and search (`gpt-5.5` by default). With both keys, `AI_PROVIDER` (`gemini` or `openai`) chooses; without it, OpenAI is used |
 | `GEMINI_LIVE_MODEL` | The Gemini Live model that transcribes speech, `gemini-3.5-transcribe-live` by default. A native-audio Live model such as `gemini-2.5-flash-native-audio-latest` also works |
 | `AGENT_TOKEN`, `SCHOOL_AGENT_TOKEN`, `BUYER_TOKEN`, `WHOLESALER_TOKEN` | Demo tokens. The AI agents send their own; the Vite proxy adds the buyer's and the wholesaler's |
 | `BACKEND_PORT` | The backend's port, 3001 by default |
 | `PORT`, `FRONTEND_DIST` | Production hosting: the port the platform gives, and the built frontend the backend then serves itself |
+| `DEMO_ACCESS_KEY` | Production hosting: the secret in the demo's access link, `/login?key=…`. Only a browser that opened the link acts as the buyer |
 
 ## Deploy with Docker
 
@@ -79,7 +81,13 @@ docker build --secret id=valio_api_key,env=VALIO_API_KEY -t trusted-trade-agents
 docker run --env-file .env -p 8080:8080 trusted-trade-agents
 ```
 
-The app is then at <http://localhost:8080>. Without the build secret, the container builds the catalog on its first start from `VALIO_API_KEY`, which needs about 1 GB of memory. The browser app acts as the buyer, so set your own values for the demo tokens before you expose it.
+The app is then at <http://localhost:8080/login?key=YOUR_DEMO_ACCESS_KEY>, the demo's access link. Without the build secret, the container builds the catalog on its first start from `VALIO_API_KEY`, which needs about 1 GB of memory. Set your own values for the demo tokens before you expose it.
+
+With MariaDB, so the state survives restarts, one command starts both:
+
+```bash
+docker compose up --build
+```
 
 ## Project structure
 
@@ -93,6 +101,7 @@ frontend/        React + Vite buyer and wholesaler app
 .env.example     Configuration template, copy it to .env
 docs/            How it works, the API, trust and controls, scenarios, deployment
 Dockerfile       One container for the API and the frontend
+docker-compose.yml  The container with a MariaDB database next to it
 package.json     npm workspaces and the root commands
 ```
 

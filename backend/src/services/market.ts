@@ -219,12 +219,19 @@ export const orderable = (product: Product) => !product.unavailableReason;
  * delivery date, keeps them in the store, and returns them in the same order.
  * Unknown product codes are left out.
  */
-export async function liveProducts(store: Store, productIds: readonly string[], requestedDate = nextDeliveryDate(store.clock())): Promise<Product[]> {
+export async function liveProducts(
+  store: Store,
+  productIds: readonly string[],
+  requestedDate = nextDeliveryDate(store.clock()),
+  /** fresh skips the client's cache, for the check just before an order commits. */
+  options: { fresh?: boolean } = {},
+): Promise<Product[]> {
   const entries = [...new Set(productIds)].map((id) => store.catalog.byId.get(id)).filter((entry): entry is CatalogEntry => !!entry);
   if (entries.length === 0) return [];
   const answer = await store.valio.lookup(
     entries.map((entry) => entry.id),
     requestedDate,
+    options,
   );
   const now = store.clock();
   const products = entries.map((entry) => {
@@ -266,7 +273,7 @@ export async function searchEntries(
   if (query.search === "semantic" && query.q) {
     const index = store.semantic.index();
     if (!index) return { entries: searchCatalog(store.catalog.entries, query, limit), mode: "keyword", fallbackReason: "the semantic index has not been built (npm run embeddings)" };
-    if (!store.semantic.embedQuery) return { entries: searchCatalog(store.catalog.entries, query, limit), mode: "keyword", fallbackReason: "OPENAI_API_KEY is not set, so the query cannot be embedded" };
+    if (!store.semantic.embedQuery) return { entries: searchCatalog(store.catalog.entries, query, limit), mode: "keyword", fallbackReason: "no AI key is set (GEMINI_API_KEY or OPENAI_API_KEY), so the query cannot be embedded" };
     try {
       const vector = await store.semantic.embedQuery(query.q);
       const candidates = store.catalog.entries.filter((entry) => passesStaticFilters(entry, query));

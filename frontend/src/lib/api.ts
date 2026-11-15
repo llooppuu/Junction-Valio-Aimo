@@ -738,7 +738,7 @@ export type AgentStep =
       plan?: MenuPlan;
     };
 
-export type AgentOutcome = "awaiting_approval" | "quote_ready" | "ordered" | "needs_attention" | "answered";
+export type AgentOutcome = "awaiting_approval" | "quote_ready" | "ordered" | "needs_attention" | "answered" | "list_to_confirm";
 
 export interface AgentRun {
   id: string;
@@ -746,6 +746,8 @@ export interface AgentRun {
   model: string;
   agent: { id: string; name: string };
   request: string;
+  /** A purchasing list read from a photo, which the agent restates for the buyer to confirm. */
+  kind?: "list_photo";
   status: "running" | "completed" | "failed" | "cancelled";
   startedAt: string;
   finishedAt?: string;
@@ -758,6 +760,22 @@ export interface AgentRun {
 
 export async function fetchAgentStatus(signal?: AbortSignal): Promise<AgentStatus> {
   return request<AgentStatus>("/api/agent", { signal: signal ?? null });
+}
+
+/** Whether this browser may use the app: a token from the dev proxy, or the hosted demo's access cookie. */
+export async function fetchSession(): Promise<{ authenticated: boolean; role: string | null; accessLink: boolean }> {
+  return request("/api/session");
+}
+
+/** Whether photos of purchasing lists can be read. */
+export async function fetchIntakeStatus(signal?: AbortSignal): Promise<{ available: boolean; model: string | null }> {
+  return request("/api/intake", { signal: signal ?? null });
+}
+
+/** Reads a photo of a purchasing list into request text. Nothing is quoted or ordered. */
+export async function readListPhoto(image: string, language: "en" | "fi"): Promise<string> {
+  const body = await request<{ text: string }>("/api/intake/list", { method: "POST", body: JSON.stringify({ image, language }) });
+  return body.text;
 }
 
 export interface VoiceStatus {
@@ -798,11 +816,13 @@ export async function startAgentRun(
   conversationId: string | undefined,
   agentId: string,
   language: "en" | "fi" = "en",
+  /** "list_photo": the message is a list read from a photo, which the agent confirms with the buyer before acting. */
+  kind?: "list_photo",
 ): Promise<AgentRun> {
   const body = await request<{ run: AgentRun }>("/api/agent/runs", {
     method: "POST",
     // A follow-up keeps its conversation's agent, so only a new conversation names one. The agent replies in the buyer's language.
-    body: JSON.stringify(conversationId ? { message, conversationId, language } : { message, agentId, language }),
+    body: JSON.stringify({ message, ...(conversationId ? { conversationId } : { agentId }), language, ...(kind ? { kind } : {}) }),
   });
   return body.run;
 }

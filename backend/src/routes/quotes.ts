@@ -3,7 +3,7 @@ import { currentPrincipal, requireRole } from "../auth.js";
 import { describeIssues, parseOr400, sendValidationError } from "../http.js";
 import { recordAudit } from "../services/audit.js";
 import { createQuoteSchema, decisionSchema } from "../schemas/quote.js";
-import { createQuote, decideQuote, getQuote, recheckQuote } from "../services/quotes.js";
+import { createQuote, decideQuote, recheckQuote, visibleQuote, visibleQuotes } from "../services/quotes.js";
 import { auditForQuote } from "../services/audit.js";
 import { shortfallOptions } from "../services/shortfall.js";
 import { comparableIds, liveForQuote, liveProducts, productIdInOffer } from "../services/market.js";
@@ -36,22 +36,23 @@ export function quotesRouter(store: Store) {
     res.status(201).json({ quote: createQuote(store, input, currentPrincipal(res)) });
   });
 
+  // An agent sees only the quotes it created for its own kitchen; the buyer sees all.
   router.get("/", anyRole, (_req, res) => {
-    const quotes = [...store.quotes.values()].reverse();
-    res.json({ quotes });
+    res.json({ quotes: visibleQuotes(store, currentPrincipal(res)) });
   });
 
   router.get("/:id", anyRole, (req, res) => {
-    res.json({ quote: getQuote(store, String(req.params.id)) });
+    res.json({ quote: visibleQuote(store, String(req.params.id), currentPrincipal(res)) });
   });
 
   router.post("/:id/recheck", anyRole, async (req, res) => {
+    visibleQuote(store, String(req.params.id), currentPrincipal(res));
     await refreshQuote(String(req.params.id));
     res.json(recheckQuote(store, String(req.params.id), currentPrincipal(res)));
   });
 
   router.get("/:id/audit", anyRole, (req, res) => {
-    const quote = getQuote(store, String(req.params.id));
+    const quote = visibleQuote(store, String(req.params.id), currentPrincipal(res));
     res.json({ entries: auditForQuote(store, quote.id) });
   });
 
@@ -64,7 +65,7 @@ export function quotesRouter(store: Store) {
   });
 
   router.get("/:id/shortfall-options", anyRole, async (req, res) => {
-    const quote = getQuote(store, String(req.params.id));
+    const quote = visibleQuote(store, String(req.params.id), currentPrincipal(res));
     const ids = (quote.shortfalls ?? []).flatMap((shortfall) => [shortfall.productId, ...comparableIds(store, [shortfall.productId])]);
     await liveProducts(store, ids, quote.requirements?.deliverBy ?? quote.deliveryDate);
     res.json({ plans: shortfallOptions(store, String(req.params.id)) });

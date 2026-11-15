@@ -1,0 +1,48 @@
+# The app and its MariaDB database with one command:
+#
+#   docker compose up --build
+#
+# Then open http://localhost:8080/login?key=<DEMO_ACCESS_KEY>. Keys come from .env (see .env.example).
+# Quotes, orders, mandates, earned autonomy, and the audit history are saved in MariaDB and survive restarts.
+
+services:
+  mariadb:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: tta
+      MARIADB_USER: tta
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:-tta-local-password}
+      MARIADB_RANDOM_ROOT_PASSWORD: "1"
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    # Reachable from this machine only, for local development and the database tests.
+    ports:
+      - "127.0.0.1:${MARIADB_PORT:-3306}:3306"
+
+  app:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: mariadb://tta:${MARIADB_PASSWORD:-tta-local-password}@mariadb:3306/tta
+      DEMO_ACCESS_KEY: ${DEMO_ACCESS_KEY:?Set DEMO_ACCESS_KEY in .env, the secret in the demo access link}
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    volumes:
+      # The catalog and search index are built once on the first start and kept here.
+      - catalog-data:/app/backend/data
+
+volumes:
+  mariadb-data:
+  catalog-data:

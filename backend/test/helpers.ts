@@ -66,8 +66,11 @@ export interface TestServer {
  * Starts the app on a free port. Each call gets its own server and state.
  * The AI agent is off unless a test passes a model, so tests never call OpenAI.
  */
+/** The access link's key in tests that serve the frontend. */
+export const TEST_ACCESS_KEY = "test-access-key-0123456789";
+
 export async function startTestServer(options: AppOptions = {}): Promise<TestServer> {
-  const server = createApp({ agentModel: null, voiceTokens: null, ...options, store: options.store ?? testStore() }).listen(0, "127.0.0.1");
+  const server = createApp({ agentModel: null, voiceTokens: null, listReader: null, demoAccessKey: TEST_ACCESS_KEY, ...options, store: options.store ?? testStore() }).listen(0, "127.0.0.1");
   await once(server, "listening");
   const { port } = server.address() as AddressInfo;
   const baseUrl = `http://127.0.0.1:${port}`;

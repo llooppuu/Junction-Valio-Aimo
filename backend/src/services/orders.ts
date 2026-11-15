@@ -4,7 +4,8 @@ import { findProduct, type Store } from "../store.js";
 import { recordAudit } from "./audit.js";
 import { verifyToken } from "./signing.js";
 import { formatEur } from "./permissions.js";
-import { findShortfalls, getQuote, markOutOfDate, type QuoteLine, type QuoteStatus } from "./quotes.js";
+import { findShortfalls, findTermChanges, getQuote, isExpired, markExpired, markOutOfDate, markTermsChanged, type Quote, type QuoteLine, type QuoteStatus } from "./quotes.js";
+import { checkPermission, type GuardrailCheck } from "./permissions.js";
 import { watchStock } from "./stockWatch.js";
 import { fiDate, fiEur, fiPerson } from "../i18n.js";
 
@@ -106,10 +107,30 @@ export function placeOrder(store: Store, quoteId: string, principal: Principal, 
   const refusal = REFUSALS[quote.status];
   if (refusal) refuse(`it ${refusal}`, REFUSALS_FI[quote.status] ?? "Tarjousta ei voi tilata.");
 
+  // A quote is valid for a limited time on the server, whether or not its signed offer is presented.
+  if (isExpired(store, quote)) {
+    markExpired(store, quote, principal);
+    refuse(`it expired at ${quote.expiresAt}. Prepare a replacement quote`, "Tarjous on vanhentunut. Tee korvaava tarjous.", { expired: true });
+  }
+
+  // An agent's own authority is what the buyer allows now, not what they allowed when the quote was made.
+  if (quote.status === "within_limit" && quote.createdBy.role === "agent") reauthorize(store, quote, principal, refuse);
+
   const shortfalls = findShortfalls(store, quote);
   if (shortfalls.length > 0) {
     markOutOfDate(store, quote, shortfalls, principal);
     refuse("stock has changed. Prepare a replacement quote", "Saldo on muuttunut. Tee korvaava tarjous.", { shortfalls });
+  }
+
+  // The order commits to the quoted delivery date, so Valio Aimo must still offer it.
+  const changedTerms = findTermChanges(store, quote);
+  if (changedTerms.length > 0) {
+    markTermsChanged(store, quote, changedTerms, principal);
+    refuse(
+      `Valio Aimo's terms have changed: ${changedTerms.map((change) => change.detail).join("; ")}. Prepare a replacement quote`,
+      `Valio Aimon ehdot ovat muuttuneet: ${changedTerms.map((change) => change.detailFi).join("; ")}. Tee korvaava tarjous.`,
+      { changedTerms },
+    );
   }
 
   // Everything is checked, so reserve the stock and record the order in one step.
@@ -126,7 +147,7 @@ export function placeOrder(store: Store, quoteId: string, principal: Principal, 
   const order: Order = {
     id: `O-${String(store.nextOrderNumber++).padStart(4, "0")}`,
     quoteId: quote.id,
-    placedAt: new Date().toISOString(),
+    placedAt: store.clock().toISOString(),
     placedBy: { id: principal.id, role: principal.role, name: principal.name },
     lines: quote.lines,
     totalEurCents: quote.totalEurCents,
@@ -150,6 +171,75 @@ export function placeOrder(store: Store, quoteId: string, principal: Principal, 
   });
 
   return { order, created: true };
+}
+
+/** Whether the caller may see an order: the buyer sees all, an agent only those from its own quotes. */
+function canSeeOrder(store: Store, order: Order, principal: Principal): boolean {
+  return principal.role !== "agent" || store.quotes.get(order.quoteId)?.createdBy.id === principal.id;
+}
+
+/** An order as the caller may see it; another kitchen's order is answered as not found. */
+export function visibleOrder(store: Store, id: string, principal: Principal): Order {
+  const order = store.orders.get(id);
+  if (!order || !canSeeOrder(store, order, principal)) throw new ApiError(404, `Order ${id} not found.`);
+  return order;
+}
+
+/** Every order the caller may see, newest first. */
+export function visibleOrders(store: Store, principal: Principal): Order[] {
+  return [...store.orders.values()].filter((order) => canSeeOrder(store, order, principal)).reverse();
+}
+
+/** Rules that belong to the kind of quote rather than to the buyer's current settings, kept from its first check. */
+const QUOTE_SPECIFIC_RULES: ReadonlySet<GuardrailCheck["rule"]> = new Set(["standing_order_drift", "wholesaler_suggestion"]);
+
+/**
+ * Checks an agent's quote against the buyer's current mandate, limits, daily
+ * spending, and earned autonomy, just before it is ordered. If the buyer has
+ * since narrowed any of them, the quote goes back to the buyer for approval
+ * instead of being ordered on authority that no longer exists.
+ */
+function reauthorize(store: Store, quote: Quote, principal: Principal, refuse: (reason: string, reasonFi: string, extra?: object) => never) {
+  const creator = store.principals.find((candidate) => candidate.id === quote.createdBy.id);
+  const products = quote.lines.map((line) => findProduct(store, line.productId)).filter((product) => product !== undefined);
+  if (!creator || products.length !== quote.lines.length) return;
+  const kept = quote.permission.checks.filter((check) => QUOTE_SPECIFIC_RULES.has(check.rule));
+  let reason: string | undefined;
+  let reasonFi: string | undefined;
+  let checks: GuardrailCheck[] = [];
+  try {
+    const current = checkPermission(store, creator, products, quote.totalEurCents, kept, quote.lines.map((line) => line.lineTotalEurCents), {
+      excludeQuoteId: quote.id,
+      recordSetbacks: false,
+    });
+    if (current.decision === "within_limit") return;
+    reason = current.reason;
+    reasonFi = current.reasonFi;
+    checks = current.checks;
+  } catch (error) {
+    if (!(error instanceof ApiError)) throw error;
+    // An allergen conflict can never be approved; anything else, such as a narrower mandate, is the buyer's call.
+    if ((error.extra as { blocked?: boolean }).blocked) refuse(error.message, "Ostajan allergeenisääntö estää tilauksen.", { blocked: true });
+    reason = error.message;
+    reasonFi = "Ostajan nykyinen valtuutus ei enää kata tarjousta.";
+  }
+  quote.status = "needs_approval";
+  quote.permission = {
+    ...quote.permission,
+    decision: "needs_approval",
+    reason: `Checked again before ordering: ${reason}`,
+    reasonFi: `Tarkistettu uudelleen ennen tilausta: ${reasonFi}`,
+    checks: checks.length > 0 ? checks : quote.permission.checks,
+    checkedAt: store.clock().toISOString(),
+  };
+  recordAudit(store, principal, {
+    action: "permission.checked",
+    quoteId: quote.id,
+    summary: `Quote ${quote.id} needs the buyer's approval after all: the buyer's settings changed after it was quoted.`,
+    reason: quote.permission.reason,
+    fi: { summary: `Tarjous ${quote.id} tarvitsee sittenkin ostajan hyväksynnän: ostajan asetukset muuttuivat tarjouksen jälkeen.`, reason: quote.permission.reasonFi },
+  });
+  refuse(`it now needs the buyer's approval: ${reason}`, `Tarjous tarvitsee nyt ostajan hyväksynnän: ${reasonFi}`, { quoteStatus: "needs_approval" });
 }
 
 export function getOrder(store: Store, id: string): Order {

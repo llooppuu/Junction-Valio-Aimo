@@ -21,6 +21,14 @@ const envSchema = z.object({
     .trim()
     .optional()
     .transform((value) => value || undefined),
+  // The secret in the demo's access link, /login?key=<value>. Required when FRONTEND_DIST is set:
+  // only a browser that opened the link acts as the buyer. At least 16 characters.
+  DEMO_ACCESS_KEY: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => value || undefined)
+    .pipe(z.string().min(16, "DEMO_ACCESS_KEY must be at least 16 characters").optional()),
   // Demo credentials. Every value here is synthetic, but change them before exposing the app.
   AGENT_TOKEN: z.string().min(8).default("demo-agent-token"),
   BUYER_TOKEN: z.string().min(8).default("demo-buyer-token"),
@@ -37,6 +45,14 @@ const envSchema = z.object({
     .transform((value) => value || undefined),
   OPENAI_MODEL: z.string().min(1).default("gpt-5.5"),
   OPENAI_REASONING_EFFORT: z.enum(["minimal", "low", "medium", "high"]).default("low"),
+  // Or Gemini, with GEMINI_API_KEY (the same key voice input uses). AI_PROVIDER picks one when both
+  // keys are set; without it, OpenAI is used when its key is set, and Gemini otherwise.
+  AI_PROVIDER: z
+    .enum(["openai", "gemini"])
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+  GEMINI_MODEL: z.string().min(1).default("gemini-3.8-flash"),
+  GEMINI_REASONING_EFFORT: z.enum(["minimal", "low", "medium", "high"]).default("low"),
   // Valio Aimo's mock price and availability APIs. The key is read only here, on the server.
   // Without it the catalog can still be searched, but nothing can be priced, quoted, or ordered.
   VALIO_API_KEY: z
@@ -45,6 +61,13 @@ const envSchema = z.object({
     .optional()
     .transform((value) => value || undefined),
   VALIO_API_URL: z.url().default("https://junction26.valioaimo.fi"),
+  // Where the state is saved between restarts, for example mariadb://tta:password@localhost:3306/tta.
+  // Without it, quotes, orders, and the audit history live in memory and a restart starts over.
+  DATABASE_URL: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => value || undefined),
   // Voice input in the agent workspace, through Gemini Live. Without a key the microphone button is
   // hidden and typing works as before. The key stays on the server; browsers get single-use tokens.
   GEMINI_API_KEY: z

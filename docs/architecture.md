@@ -6,7 +6,7 @@ The system has three kinds of clients and one server. The server is the only par
 flowchart LR
   subgraph Clients
     Buyer["Buyer's web app<br/>(head chef)"]
-    Agent["AI purchasing agent<br/>(GPT-5.5, tool use)"]
+    Agent["AI purchasing agent<br/>(Gemini or GPT-5.5, tool use)"]
     Ext["Any external agent<br/>(same public API)"]
     WS["Wholesaler's view"]
   end
@@ -47,6 +47,7 @@ flowchart LR
 | Kitchen data | `backend/src/data/` | The kitchens' recipes, inventory, planned orders, track records, and the wholesaler's launches. Ours, not Valio Aimo's. |
 | AI agent | `backend/src/agent/` | Runs a request through the public API with the agent's own token, using 16 tools. It gets no shortcut past any rule. |
 | MCP layer | `backend/src/mcp/`, `routes/mcp.ts` | Lists the agent's 16 tools to MCP clients over stdio or HTTP and forwards each call to the REST API with that client's token. |
+| List photos | `services/listReader.ts`, `routes/intake.ts`, `frontend/src/components/ListPhotoInput.tsx` | Reads a photo or screenshot of a purchasing list with Gemini (or GPT-5.5) and hands it to the agent as a `list_photo` run. That run gets no tools: the agent can only restate the list and ask the buyer to confirm it, and the buyer's reply continues the conversation with the tools back. The image is treated as data, never as instructions. |
 | Voice input | `services/voice.ts`, `routes/voice.ts`, `frontend/src/lib/voice.ts` | Issues the browser a single-use Gemini Live token. The browser streams the microphone to Gemini and puts the transcript in the request box. The buyer sends it with Send, or by ending the request with “thank you” or “kiitos”. |
 | Audit | `backend/src/services/audit.ts` | Appends a frozen entry for every step, in English and Finnish. No route edits or deletes one. |
 
@@ -91,4 +92,4 @@ sequenceDiagram
 
 **Everything is explainable, in two languages.** Each decision carries the rules checked, the alternatives not chosen, and why. The server writes each sentence in English and Finnish, so the buyer reads the reason in their own language.
 
-**State is in memory.** Quotes, orders, and the audit history live in memory and reset with the demo. The data model is persistence-ready; see [the path to production](standards-and-production.md#path-to-production).
+**State is held in memory and saved to MariaDB.** The services work on in-memory records, and with `DATABASE_URL` the whole state is saved to MariaDB whenever it changes and restored on start (`backend/src/persistence/`), with every audit entry also appended to its own table. See [Deployment](deployment.md#with-mariadb).

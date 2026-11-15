@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
 import type { CatalogEntry } from "../data/catalog.js";
 
@@ -14,6 +15,8 @@ import type { CatalogEntry } from "../data/catalog.js";
 export const EMBEDDINGS_META_FILE = fileURLToPath(new URL("../../data/embeddings.json", import.meta.url));
 export const EMBEDDINGS_VECTOR_FILE = fileURLToPath(new URL("../../data/embeddings.bin", import.meta.url));
 export const EMBEDDING_MODEL = "text-embedding-3-small";
+/** The Gemini model for the same index, when the AI provider is Gemini. */
+export const GEMINI_EMBEDDING_MODEL = "gemini-embedding-001";
 /** Shortened vectors keep the index small (17,546 × 512 floats, about 36 MB) and still match Finnish queries well. */
 export const EMBEDDING_DIMENSIONS = 512;
 
@@ -69,6 +72,37 @@ export function openAiEmbedder(apiKey: string, model = EMBEDDING_MODEL, dimensio
     return response.data.sort((a, b) => a.index - b.index).map((item) => item.embedding);
   };
 }
+
+/**
+ * Embeds texts with Gemini, in the index's size. Products and queries are
+ * embedded for retrieval with their own task types, as Gemini recommends.
+ * Gemini takes up to 100 texts per call; a rate limit is waited out and retried.
+ */
+export function geminiEmbedder(apiKey: string, purpose: "document" | "query", model = GEMINI_EMBEDDING_MODEL, dimensions = EMBEDDING_DIMENSIONS): Embedder {
+  const ai = new GoogleGenAI({ apiKey });
+  const taskType = purpose === "document" ? "RETRIEVAL_DOCUMENT" : "RETRIEVAL_QUERY";
+  return async (texts) => {
+    const vectors: number[][] = [];
+    for (let start = 0; start < texts.length; start += 100) {
+      const batch = texts.slice(start, start + 100);
+      for (let attempt = 1; ; attempt++) {
+        try {
+          const response = await ai.models.embedContent({ model, contents: batch, config: { taskType, outputDimensionality: dimensions } });
+          vectors.push(...(response.embeddings ?? []).map((embedding) => embedding.values ?? []));
+          break;
+        } catch (error) {
+          const limited = /429|RESOURCE_EXHAUSTED|rate/i.test(error instanceof Error ? error.message : String(error));
+          if (!limited || attempt >= 6) throw error;
+          await new Promise((resolve) => setTimeout(resolve, 15_000 * attempt));
+        }
+      }
+    }
+    return vectors;
+  };
+}
+
+/** Whether an index was built with Gemini, so queries must be embedded with Gemini too. */
+export const isGeminiIndex = (index: { model: string }) => index.model.startsWith("gemini");
 
 /** Ranks the given catalog entries by similarity to the query vector. */
 export function rankBySimilarity(index: SemanticIndex, query: Float32Array, entries: readonly CatalogEntry[], limit: number): { entry: CatalogEntry; score: number }[] {
