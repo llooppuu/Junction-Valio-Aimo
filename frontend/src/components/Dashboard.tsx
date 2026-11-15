@@ -1,4 +1,4 @@
-import { ArrowRight, Bot, ClipboardCheck, Hourglass, Milk, PackageCheck, ReceiptText, Truck } from "lucide-react";
+import { Bot, ClipboardCheck, Hourglass, PackageCheck, ReceiptText, Truck } from "lucide-react";
 import type { AgentStatus } from "../lib/api";
 import { formatDateTime, formatEuroCents, formatPercent } from "../lib/format";
 import { useI18n } from "../lib/i18n";
@@ -171,14 +171,6 @@ export function Dashboard({ summary, agent, onNavigate, onShowQuote }: Dashboard
           {summary && <p className="supplier-formula">{t("dash.score", { formula: summary.reliabilityFormula })}</p>}
         </section>
       </div>
-
-      <button type="button" className="dash-cta" onClick={() => onNavigate("workspace")}>
-        <Milk aria-hidden="true" size={22} />
-        <span>
-          <strong>{t("dash.cta")}</strong> {t("dash.ctaExample", { example: t("agent.example") })}
-        </span>
-        <ArrowRight aria-hidden="true" size={20} />
-      </button>
     </div>
   );
 }
